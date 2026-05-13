@@ -350,10 +350,12 @@ do_update() {
         fi
     fi
 
-    # 3) 백업
-    local ts backup
+    # 3) 백업 (skills/ 밖으로! 안에 두면 Claude Code가 별도 skill로 오인)
+    local ts backup_dir backup
     ts=$(date +%Y%m%d-%H%M%S)
-    backup="${SKILL_ROOT}.bak-${ts}"
+    backup_dir="$HARNESS_DATA/backups"
+    backup="$backup_dir/harness-$ts"
+    mkdir -p "$backup_dir"
     if cp -r "$SKILL_ROOT" "$backup" 2>/dev/null; then
         log "  📦 백업: $backup"
     else

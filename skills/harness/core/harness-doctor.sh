@@ -155,7 +155,12 @@ check_6_codex() {
     if command -v codex >/dev/null 2>&1; then
         local ver
         ver=$(codex --version 2>/dev/null | head -1)
-        record_pass 6 "Codex CLI" "(${ver:-installed})"
+        local extra=""
+        # bubblewrap 존재 여부 (선택, 없으면 Codex가 번들 사용)
+        if ! command -v bwrap >/dev/null 2>&1; then
+            extra=" ${C_DIM}[bubblewrap 없음 — Codex 번들 사용, 무해. 설치: sudo apt install -y bubblewrap]${C_RESET}"
+        fi
+        record_pass 6 "Codex CLI" "(${ver:-installed})${extra}"
     else
         record_fail 6 "Codex CLI (@openai/codex)" \
             "자동 설치 가능: bash harness-doctor.sh --fix\n        수동: npm install -g @openai/codex" \

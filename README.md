@@ -187,13 +187,48 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `HARNESS_IDLE_LIMIT` | `180` | Codex/Gemini stdout 무응답 N초 시 abort. Codex가 계속 출력하면 무한 대기 |
 | `HARNESS_HARD_LIMIT` | `3600` | runaway 안전망 (절대 상한, 1시간) |
 | `HARNESS_WAIT_LIMIT` | (deprecated) | 설정 시 `HARNESS_HARD_LIMIT`으로 매핑 (하위호환) |
-| `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 별창 모드 비활성 (인라인 fallback) |
+| `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 tmux attach 별창 비활성 (Codex는 여전히 tmux detached로 실행되지만 사용자에게 안 보임) |
+| `HARNESS_TMUX_READY_TIMEOUT` | `30` | Codex TUI 로딩 대기 한도(초). 캡처에서 prompt 라인 감지로 ready 판정 |
+| `HARNESS_LARGE_PROMPT_BYTES` | `10240` | (legacy, 현재는 무관 — 항상 `tmux load-buffer + paste-buffer` 사용) |
+| `HARNESS_MAX_ONBOARDING_ENTER` | `3` | Codex 첫 사용 시 onboarding 화면 감지 시 자동 Enter 주입 최대 횟수 |
 | `HARNESS_GEMINI_MODEL` | (auto) | Gemini CLI 모델 override (예: `gemini-3-flash-preview`) |
 | `HARNESS_SKIP_DRIFT_CHECK` | (unset) | `1` 설정 시 drift 검사 skip (CI/자동화) |
 | `HARNESS_REPO_URL` | (default) | 업데이트 대상 GitHub URL override |
 | `HARNESS_REPO_API` | (default) | 업데이트 대상 GitHub API URL override |
 
 **중요**: `HARNESS_IDLE_LIMIT`이 wall-clock 타임아웃을 대체합니다. Codex가 깊은 코드 분석/도구 호출로 5-10분씩 작업해도 stdout으로 reasoning 로그가 계속 흐르면 멈추지 않고 끝까지 기다림. 진짜 hang(N초 동안 0 byte도 안 늘어남)일 때만 abort.
+
+### Codex 호출 메커니즘 (TUI + sentinel)
+
+기존 `codex exec` 비대화 호출은 큰 repo + 다중 subprocess 환경에서 `codex_core::tools::router stdin closed` 버그를 자주 일으켜, 현재 wrapper는 **대화형 TUI + sentinel 파일** 방식 사용:
+
+```
+[harness wrapper]
+   │
+   ├─ tmux new-session -d -s NAME 'bash $INNER'  ──→  [tmux session]
+   │                                                       │
+   │                                                       └─ codex (interactive TUI, --sandbox workspace-write)
+   │                                                              ▲
+   ├─ wt.exe new-tab wsl tmux attach            ──→  [별창에서 사용자가 TUI 봄 (optional)]
+   │
+   ├─ TUI 로딩 감지 (capture-pane polling)
+   ├─ tmux load-buffer + paste-buffer            ──→  prompt를 input box에 한 덩어리로 paste
+   ├─ tmux send-keys Enter                       ──→  submit
+   │
+   └─ 폴링 (2초 주기):
+       ├─ sentinel 파일 존재 + <<<HARNESS-DONE>>> 마커 → 본문 추출, exit 0
+       ├─ tmux pane 종료 (sentinel 없음) → capture fallback, exit 1
+       ├─ codex_core::tools::router error → exit 4
+       ├─ auth 실패 패턴 → exit 2 + 로그인 창
+       ├─ quota 패턴 → exit 3 + Claude fallback
+       └─ idle/hard timeout → exit 124
+```
+
+**Prompt suffix**: 사용자 요청 본문 끝에 `core/sentinel-instructions.md` 가 자동 append되어, Codex에게 응답 완료 후 sentinel 파일 작성을 지시.
+
+**자동 git init**: Codex 대화형은 git repo를 요구. wrapper는 `.git` 없으면 자동 `git init -q -b main` 수행 (안내 메시지 출력).
+
+**별창 비활성**: `HARNESS_NO_VISIBLE=1` 로 wt.exe attach skip — tmux는 detached로 계속 동작, 사용자는 wrapper의 heartbeat 메시지만 봄.
 
 ### Drift 검사 (자동)
 
@@ -331,6 +366,9 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" \
 | `This command must run inside a Git repository` (`/codex:review`) | 별개 issue — Codex CLI가 git 강제 요구 | `git init` 후 재시도, 또는 `codex-reviewer` agent 직접 호출 |
 | `warning: Codex could not find bubblewrap on PATH ... Codex will use the bundled bubblewrap` | WSL에 bubblewrap 미설치, Codex가 번들 fallback 사용 중 | **무시 가능 (동작·보안 영향 없음)**. 깔끔히 없애려면: `sudo apt install -y bubblewrap` (또는 `bash ~/.claude/skills/harness/core/run-interactive.sh "📦 bubblewrap" "sudo apt install -y bubblewrap"`) |
 | `codex_core::tools::router: error=write_stdin failed: stdin is closed for this session` | **Codex CLI 자체 버그** — tool router가 닫힌 subprocess stdin에 명령 쓰려고 함. 큰 repo + 다중 rg/find 호출 환경에서 가끔 발생. exit 4로 분류됨 | wrapper가 자동 감지 후 Claude code-reviewer agent로 fallback. 권장: `npm i -g @openai/codex@latest` 로 업데이트 |
+| Codex가 응답은 했는데 sentinel 파일 안 만들고 종료 | Codex가 sentinel 작성 지시를 무시한 케이스. wrapper가 pane capture를 fallback으로 결과 사용 + exit 1 | 메시지에 표시. 자주 발생하면 sentinel suffix template 강화 검토 |
+| `tmux 미설치` | doctor check #3에서 잡힘 | `sudo apt install -y tmux` 또는 `bash ~/.claude/skills/harness/core/run-interactive.sh "📦 tmux 설치" "sudo apt install -y tmux"` |
+| Codex TUI가 git repo가 아닌 곳에서 시작 거부 | wrapper가 자동 `git init -q -b main` 수행 후 진행 | 안내 메시지 한 줄 출력 |
 
 상세: [skills/harness/docs/setup.md](skills/harness/docs/setup.md)
 

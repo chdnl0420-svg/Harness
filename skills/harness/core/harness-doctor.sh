@@ -124,11 +124,11 @@ check_2_wt() {
 # ===== 검사 3: 기본 도구 (bash/git/curl/stdbuf) =====
 check_3_basics() {
     local missing=()
-    for cmd in bash git curl stdbuf grep awk sed; do
+    for cmd in bash git curl stdbuf grep awk sed tmux; do
         command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
     done
     if [ ${#missing[@]} -eq 0 ]; then
-        record_pass 3 "기본 도구 (bash/git/curl/stdbuf/...)" ""
+        record_pass 3 "기본 도구 (bash/git/curl/stdbuf/tmux/...)" ""
     else
         record_fail 3 "기본 도구" \
             "누락: ${missing[*]}\n        WSL에서: sudo apt update && sudo apt install -y ${missing[*]}"

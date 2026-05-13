@@ -11,9 +11,10 @@ argument-hint: '[--update] [--no-version-check]'
 
 | 호출 | 동작 |
 |------|------|
-| `/harness-setup` | 검진 → npm 자동 설치 → 9/9 통과 시 GitHub 버전 비교 안내 |
-| `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동) |
-| `/harness-setup --no-version-check` | GitHub 호출 skip (오프라인) |
+| `/harness-setup` | 검진 + npm/apt/key 자동 설치 + **outdated면 자동 업데이트** (백업 자동 생성) |
+| `/harness-setup --update` | 검진 skip + 즉시 업데이트 (force, 동일 버전이어도 강제 적용) |
+| `/harness-setup --no-update` | 검진은 진행, outdated 감지해도 자동 업데이트 안 함 (안내만) |
+| `/harness-setup --no-version-check` | GitHub 호출 자체 skip (오프라인용) |
 
 ## 동작 절차
 

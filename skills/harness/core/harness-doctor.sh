@@ -2,11 +2,12 @@
 # harness-doctor.sh — Windows+WSL 환경의 harness 의존성 검진 + GitHub 최신화
 #
 # 사용법:
-#   bash harness-doctor.sh                    # 검사 + 버전 안내
-#   bash harness-doctor.sh --fix              # npm 패키지 자동 설치 + Gemini key 별창
+#   bash harness-doctor.sh                    # 검사 + npm/apt/key 자동 fix + outdated 시 자동 업데이트
+#   bash harness-doctor.sh --fix              # 위와 동일 (alias)
 #   bash harness-doctor.sh --quiet            # 모두 OK면 출력 없음 + exit 0
-#   bash harness-doctor.sh --update           # GitHub 최신 버전으로 즉시 업데이트
-#   bash harness-doctor.sh --no-version-check # GitHub 조회 skip (오프라인)
+#   bash harness-doctor.sh --update           # 검진 skip + 즉시 업데이트 (force)
+#   bash harness-doctor.sh --no-update        # 검진은 진행, 업데이트는 안내만 (자동 적용 안 함)
+#   bash harness-doctor.sh --no-version-check # GitHub 조회 자체 skip (오프라인)
 #
 # Exit code:
 #   0 = 모든 prereq OK (또는 --fix/--update 로 해결됨)
@@ -17,13 +18,15 @@ set -u
 
 # ===== 옵션 파싱 =====
 MODE="report"           # report | fix | quiet
-DO_UPDATE=0             # --update 플래그
-SKIP_VERSION_CHECK=0    # --no-version-check 플래그
+DO_UPDATE=0             # --update: 검진 skip하고 즉시 업데이트
+SKIP_VERSION_CHECK=0    # --no-version-check: GitHub 조회 자체 skip
+SKIP_AUTO_UPDATE=0      # --no-update: 검진 통과 + outdated 감지해도 자동 업데이트 안 함
 for arg in "$@"; do
     case "$arg" in
         --fix) MODE="fix" ;;
         --quiet) MODE="quiet" ;;
         --update) DO_UPDATE=1 ;;
+        --no-update) SKIP_AUTO_UPDATE=1 ;;
         --no-version-check) SKIP_VERSION_CHECK=1 ;;
         --help|-h)
             sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
@@ -295,7 +298,13 @@ check_version() {
     if [ -z "$local_sha" ]; then
         log "  ${WARN} 로컬 버전 정보 없음 (오래된 설치)"
         log "  최신 SHA: ${remote_sha:0:7}"
-        log "  업데이트: /harness-setup --update"
+        if [ "$SKIP_AUTO_UPDATE" = "0" ]; then
+            log "  → 자동 업데이트 진행 (skip하려면 --no-update)"
+            do_update
+            return $?
+        else
+            log "  업데이트 강제 실행: /harness-setup --update"
+        fi
         return 0
     fi
 
@@ -305,7 +314,13 @@ check_version() {
         log "  ⬆ 업데이트 가능"
         log "      현재: ${local_sha:0:7}"
         log "      최신: ${remote_sha:0:7}"
-        log "      적용: /harness-setup --update"
+        if [ "$SKIP_AUTO_UPDATE" = "0" ]; then
+            log "      → 자동 업데이트 진행 (skip하려면 --no-update)"
+            do_update
+            return $?
+        else
+            log "      적용 (수동): /harness-setup --update"
+        fi
     fi
 }
 

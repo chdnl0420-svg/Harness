@@ -209,7 +209,7 @@ check_9_gemini_key() {
         record_pass 9 "Gemini API key" "(${src})"
     else
         record_fail 9 "Gemini API key" \
-            "API key 미설정.\n        1) https://aistudio.google.com/apikey 에서 키 발급\n        2) 키 등록 (별창 자동 띄움, paste만 하면 됨):\n           bash ~/.claude/skills/harness/core/run-interactive.sh \"🔑 Gemini key\" \"bash ~/.claude/skills/harness/core/setup-gemini-key.sh\"\n        3) 검증: /harness-setup\n        (수동 편집을 원하면 nano ~/.bashrc 후 export GEMINI_API_KEY=\"...\" 추가)"
+            "API key 미설정.\n\n        ▶ 한 줄 등록 (가장 간단):\n            ① https://aistudio.google.com/apikey 에서 키 발급 + 복사\n            ② WSL 터미널에 아래 줄을 붙여넣고, 따옴표 안만 발급받은 키로 교체 후 Enter:\n\n            bash ~/.claude/skills/harness/core/setup-gemini-key.sh \"AIzaSy_여기에_키_붙여넣기\"\n\n            ③ Claude Code 에서: /harness-setup (재검진)\n\n        (별창 자동 띄우기를 원하면 /harness-setup --fix 자동 호출되는 경로 참고)"
     fi
 }
 

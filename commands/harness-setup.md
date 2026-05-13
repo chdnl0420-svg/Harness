@@ -56,7 +56,7 @@ wsl -e bash -lc '
 |------|------|------|
 | Codex CLI | ✅ | npm 패키지, user 영역, sudo 불필요 |
 | Gemini CLI | ✅ | 동일 |
-| Gemini API key | ✅ 반자동 | 별창 띄워 paste만 받음 (`setup-gemini-key.sh` + 형식 검증 + bashrc 자동 갱신) |
+| Gemini API key | ✅ 반자동 | 한 줄 명령에 키 인자 전달 (`setup-gemini-key.sh "AIzaSy..."`) 또는 `/harness-setup --fix` 가 별창 자동 띄움 |
 | Node ≥ 20 | ⚠️ 가이드 | `nvm install 20` 권한 거부 빈도 → 사용자 직접 |
 | NVM | ❌ 가이드 | 시스템 설치 |
 | 기본 도구 (apt) | ❌ 가이드 | sudo 필요 |

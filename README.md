@@ -121,6 +121,21 @@ clone한 디렉토리/
    ```
    → 9/9 ✅ 통과해야 사용 가능. 누락 항목(Codex 로그인, Gemini API key 등)은 화면 안내대로 처리.
 
+### Gemini API key 빠른 등록 (한 줄)
+
+[aistudio.google.com/apikey](https://aistudio.google.com/apikey) 에서 키 발급 후, **WSL 터미널**에 아래 줄을 붙여넣고 따옴표 안만 실제 키로 교체:
+
+```bash
+bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙여넣기"
+```
+
+→ 자동으로:
+- 형식 검증 (`AIzaSy` 시작 + 39자)
+- `~/.bashrc` 백업 후 안전하게 갱신 (기존 라인 교체 또는 새로 추가)
+- 현재 셸에도 즉시 export 적용 (다음 호출부터 사용 가능)
+
+확인: Claude Code에서 `/harness-setup` 다시 실행 → `[9/9] Gemini API key ✅`
+
 ---
 
 ## 🎯 사용법

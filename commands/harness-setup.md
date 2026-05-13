@@ -70,10 +70,10 @@ wsl -e bash -lc '
 |------|------|------|
 | Codex CLI | ✅ | npm 패키지, user 영역, sudo 불필요 |
 | Gemini CLI | ✅ | 동일 |
-| Gemini API key | ✅ 반자동 | 한 줄 명령에 키 인자 전달 (`setup-gemini-key.sh "AIzaSy..."`) 또는 `/harness-setup --fix` 가 별창 자동 띄움 |
+| Gemini API key | ✅ 반자동 | 한 줄 명령에 키 인자 전달 또는 `/harness-setup --fix` 가 별창 자동 띄움 |
+| **기본 도구 (apt: tmux, curl 등)** | ✅ **반자동** | `/harness-setup --fix` 가 wt.exe 별창 띄움 → 사용자가 sudo 비밀번호 입력 |
 | Node ≥ 20 | ⚠️ 가이드 | `nvm install 20` 권한 거부 빈도 → 사용자 직접 |
 | NVM | ❌ 가이드 | 시스템 설치 |
-| 기본 도구 (apt) | ❌ 가이드 | sudo 필요 |
 | Codex 로그인 | ❌ 가이드 | OAuth (브라우저 인증) |
 
 ## 트러블슈팅 (이번 세션에서 발견된 트랩들)

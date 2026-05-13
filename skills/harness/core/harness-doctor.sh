@@ -488,14 +488,36 @@ if [ "$MODE" = "fix" ] && [ "$AUTO_COUNT" -gt 0 ]; then
     do_fix
 fi
 
-# Interactive 보조 fix: Gemini API key 누락 시 별창 띄워 안전한 paste
+# Interactive 보조 fix:
+#   1) 기본 도구 (apt 필요, sudo) — 별창에서 사용자가 비밀번호 입력
+#   2) Gemini API key — 별창에서 안전한 paste
 if [ "$MODE" = "fix" ]; then
+    SCRIPT_DIR_LOCAL="$(cd "$(dirname "$0")" && pwd)"
+    HELPER="$SCRIPT_DIR_LOCAL/run-interactive.sh"
+
+    # 1) 기본 도구 (tmux 등 apt 패키지) 자동 설치 시도
+    for entry in "${FAILED[@]}"; do
+        label=$(echo "$entry" | awk -F'\\|\\|\\|' '{print $1}')
+        if [ "$label" = "기본 도구" ]; then
+            hint=$(echo "$entry" | awk -F'\\|\\|\\|' '{print $2}')
+            # hint 형식: "누락: tmux curl\n        WSL에서: sudo apt ..." → 누락 목록 추출
+            missing_pkgs=$(echo "$hint" | grep -oE '누락: [^\\]+' | sed 's/누락: //; s/[[:space:]]*$//')
+            if [ -n "$missing_pkgs" ] && [ -x "$HELPER" ]; then
+                log ""
+                log "📦 기본 도구 자동 설치 별창 띄우는 중... ($missing_pkgs)"
+                bash "$HELPER" "📦 apt install: $missing_pkgs" \
+                    "sudo apt update && sudo apt install -y $missing_pkgs" || true
+                log "    별창에서 sudo 비밀번호 입력 후 Enter로 닫기."
+            fi
+            break
+        fi
+    done
+
+    # 2) Gemini API key
     for entry in "${FAILED[@]}"; do
         label=$(echo "$entry" | awk -F'\\|\\|\\|' '{print $1}')
         if [ "$label" = "Gemini API key" ]; then
-            SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-            HELPER="$SCRIPT_DIR/run-interactive.sh"
-            KEY_SCRIPT="$SCRIPT_DIR/setup-gemini-key.sh"
+            KEY_SCRIPT="$SCRIPT_DIR_LOCAL/setup-gemini-key.sh"
             if [ -x "$HELPER" ] && [ -x "$KEY_SCRIPT" ]; then
                 log ""
                 log "🔑 Gemini API key 등록 별창 띄우는 중..."

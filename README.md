@@ -43,7 +43,7 @@
 
 ### 방법 1: PowerShell 한 줄 (WSL 불필요 ⭐ 추천)
 
-PowerShell (관리자 아니어도 OK) 열고 그대로 붙여넣기:
+**관리자 PowerShell** 열고 그대로 붙여넣기 (WSL 자동 설치 포함):
 
 ```powershell
 $ErrorActionPreference = "Stop"
@@ -51,6 +51,10 @@ $url = "https://github.com/chdnl0420-svg/Harness/archive/refs/heads/main.zip"
 $tmp = "$env:TEMP\harness-install-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
 $zip = "$tmp.zip"
 $claude = "$env:USERPROFILE\.claude"
+
+if (-not (Get-Command wsl -ErrorAction SilentlyContinue) -or -not (wsl -l -q 2>$null | Where-Object { $_ -match 'Ubuntu' })) {
+  wsl --install -d Ubuntu
+}
 
 Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
 Expand-Archive -Path $zip -DestinationPath $tmp -Force
@@ -76,7 +80,7 @@ Remove-Item -Path $zip,$tmp -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 **설치 후 다음 단계**:
-1. WSL + Ubuntu 미설치 시 (관리자 PowerShell): `wsl --install -d Ubuntu` → 재부팅
+1. 재부팅
 2. Claude Code 재시작
 3. Claude Code 에서 `/harness-setup` → 9개 prereq 검진. 누락 항목은 화면 안내대로 처리.
 

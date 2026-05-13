@@ -156,6 +156,24 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `/harness list` | 모든 작업 (최근 20) |
 | `/harness sync` | 마스터 wrapper → 프로젝트 `.harness/` 동기화 |
 | `/harness-setup` | 의존성 검진 + npm 자동 설치 |
+| `/harness-review` | Codex로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
+
+### `/harness-review` 사용 예시
+
+전체 Plan→Review 워크플로우(`/harness`)와 별개로, 가벼운 즉석 리뷰가 필요할 때:
+
+```
+/harness-review src/auth.ts 보안 위주로
+/harness-review 이 두 파일 타입 안전성 평가: src/api.ts src/types.ts
+/harness-review --paste TypeScript 코드 한 덩어리 리뷰
+/harness-review --mode plan-critique docs/rfc.md 비판적으로
+```
+
+- 자연어 + 파일 경로를 자동 분리 (Claude가 파싱)
+- 결과는 채팅에 verbatim 출력 + `.harness/reviews/adhoc-<timestamp>.md`에 자동 저장
+- `--paste`: 파일 대신 채팅에서 paste 받기
+- `--mode plan-critique`: 코드가 아닌 계획서/RFC 등 문서 비판
+- 인자 없이 호출하면 사용법만 출력 (의도치 않은 자동 동작 방지)
 
 ---
 

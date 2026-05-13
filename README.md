@@ -63,6 +63,22 @@ Write-Host "📂 Installing to $claude ..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path "$claude\skills","$claude\commands" | Out-Null
 Copy-Item -Path "$($src.FullName)\skills\harness" -Destination "$claude\skills\" -Recurse -Force
 Copy-Item -Path "$($src.FullName)\commands\harness-setup.md" -Destination "$claude\commands\" -Force
+Copy-Item -Path "$($src.FullName)\commands\harness-review.md" -Destination "$claude\commands\" -Force -ErrorAction SilentlyContinue
+
+Write-Host "🔖 Recording version..." -ForegroundColor Cyan
+try {
+  $commit = (Invoke-RestMethod -Uri "https://api.github.com/repos/chdnl0420-svg/Harness/commits/main" -UseBasicParsing).sha
+  $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+  @"
+commit: $commit
+installed: $now
+source: https://github.com/chdnl0420-svg/Harness
+branch: main
+"@ | Set-Content -Path "$claude\skills\harness\.version" -Encoding utf8
+  Write-Host "    SHA: $($commit.Substring(0,7))" -ForegroundColor DarkGray
+} catch {
+  Write-Host "    (skip — GitHub API 호출 실패, /harness-setup 시 자동 표시)" -ForegroundColor DarkGray
+}
 
 Write-Host "🧹 Cleanup..." -ForegroundColor Cyan
 Remove-Item -Path $zip,$tmp -Recurse -Force -ErrorAction SilentlyContinue
@@ -86,12 +102,17 @@ WSL Ubuntu 터미널 또는 Git Bash에서:
 ```bash
 git clone https://github.com/chdnl0420-svg/Harness.git /tmp/h && \
 W=$(cmd.exe /c "echo %USERNAME%" | tr -d '\r\n') && \
+SKILL="/mnt/c/Users/$W/.claude/skills/harness" && \
 mkdir -p "/mnt/c/Users/$W/.claude/skills" "/mnt/c/Users/$W/.claude/commands" && \
 cp -r /tmp/h/skills/harness "/mnt/c/Users/$W/.claude/skills/" && \
-cp /tmp/h/commands/harness-setup.md "/mnt/c/Users/$W/.claude/commands/" && \
-chmod +x "/mnt/c/Users/$W/.claude/skills/harness/"{core,wrappers}/*.sh && \
+cp /tmp/h/commands/harness-setup.md /tmp/h/commands/harness-review.md \
+   "/mnt/c/Users/$W/.claude/commands/" 2>/dev/null && \
+chmod +x "$SKILL"/{core,wrappers}/*.sh && \
+SHA=$(git -C /tmp/h rev-parse HEAD) && \
+printf 'commit: %s\ninstalled: %s\nsource: https://github.com/chdnl0420-svg/Harness\nbranch: main\n' \
+   "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$SKILL/.version" && \
 rm -rf /tmp/h && \
-echo "✅ 설치 완료"
+echo "✅ 설치 완료 (SHA: ${SHA:0:7})"
 ```
 
 ### 방법 3: 수동 복사
@@ -155,8 +176,32 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `/harness status` | in_progress 작업 리스트 |
 | `/harness list` | 모든 작업 (최근 20) |
 | `/harness sync` | 마스터 wrapper → 프로젝트 `.harness/` 동기화 |
-| `/harness-setup` | 의존성 검진 + npm 자동 설치 |
+| `/harness-setup` | 의존성 검진 + npm 자동 설치 + **GitHub 버전 자동 확인** |
+| `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동 생성) |
 | `/harness-review` | Codex로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
+
+### 업데이트 흐름 (`/harness-setup --update`)
+
+설치된 Harness가 GitHub의 main 브랜치보다 오래된 경우:
+
+```
+/harness-setup                # → 9/9 통과 + "⬆ 업데이트 가능: 현재 abc1234 → 최신 def5678"
+/harness-setup --update       # → 백업 + tarball 다운로드 + 적용 + .version 갱신
+```
+
+자동 처리:
+- ✅ 업데이트 전 `~/.claude/skills/harness.bak-<timestamp>` 자동 백업 (롤백 가능)
+- ✅ 로컬 수정 파일 감지 시 경고 (`.version`보다 새로운 파일 명단)
+- ✅ `.version` 갱신 (commit SHA + ISO 타임스탬프)
+- ✅ `.doctor-passed` 마커 초기화 → 다음 `/harness-setup`에서 재검진
+- ✅ 캐시 무효화 (즉시 새 버전 확인 가능)
+
+GitHub 조회 캐시: `~/.harness/.last-github-check` (1시간 TTL, rate limit 60/hr 방어).
+
+오프라인일 때:
+```
+/harness-setup --no-version-check    # GitHub 호출 건너뜀
+```
 
 ### `/harness-review` 사용 예시
 

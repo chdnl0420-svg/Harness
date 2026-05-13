@@ -1,30 +1,48 @@
 #!/bin/bash
-# harness-doctor.sh — Windows+WSL 환경의 harness 의존성 검진
+# harness-doctor.sh — Windows+WSL 환경의 harness 의존성 검진 + GitHub 최신화
 #
 # 사용법:
-#   bash harness-doctor.sh           # 검사만 + 상세 리포트
-#   bash harness-doctor.sh --fix     # npm 패키지 자동 설치 시도
-#   bash harness-doctor.sh --quiet   # 모두 OK면 출력 없음 + exit 0 / 누락 시 출력 + exit 1
+#   bash harness-doctor.sh                    # 검사 + 버전 안내
+#   bash harness-doctor.sh --fix              # npm 패키지 자동 설치 + Gemini key 별창
+#   bash harness-doctor.sh --quiet            # 모두 OK면 출력 없음 + exit 0
+#   bash harness-doctor.sh --update           # GitHub 최신 버전으로 즉시 업데이트
+#   bash harness-doctor.sh --no-version-check # GitHub 조회 skip (오프라인)
 #
 # Exit code:
-#   0 = 모든 prereq OK (또는 --fix로 모두 해결됨)
-#   1 = 누락 항목 있음 (자동 설치 불가능한 가이드 항목 포함)
-#   2 = 환경 자체가 부적합 (WSL 없음 등 — 진행 자체 불가)
+#   0 = 모든 prereq OK (또는 --fix/--update 로 해결됨)
+#   1 = 누락 항목 있음
+#   2 = 환경 자체가 부적합 (WSL 없음 등)
 
 set -u
 
 # ===== 옵션 파싱 =====
-MODE="report"  # report | fix | quiet
+MODE="report"           # report | fix | quiet
+DO_UPDATE=0             # --update 플래그
+SKIP_VERSION_CHECK=0    # --no-version-check 플래그
 for arg in "$@"; do
     case "$arg" in
         --fix) MODE="fix" ;;
         --quiet) MODE="quiet" ;;
+        --update) DO_UPDATE=1 ;;
+        --no-version-check) SKIP_VERSION_CHECK=1 ;;
         --help|-h)
             sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
             exit 0
             ;;
     esac
 done
+
+# ===== 경로 자동 감지 =====
+# 스크립트 위치(.../skills/harness/core/harness-doctor.sh) 기반으로 추론.
+# PowerShell 설치는 Windows %USERPROFILE%\.claude 에, WSL 직접 설치는 ~/.claude 에.
+SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd)"
+CLAUDE_ROOT="$(cd "$SKILL_ROOT/../.." 2>/dev/null && pwd)"  # → .../.claude
+COMMANDS_DIR="$CLAUDE_ROOT/commands"
+VERSION_FILE="$SKILL_ROOT/.version"
+HARNESS_DATA="$HOME/.harness"
+REPO_URL="${HARNESS_REPO_URL:-https://github.com/chdnl0420-svg/Harness}"
+REPO_API="${HARNESS_REPO_API:-https://api.github.com/repos/chdnl0420-svg/Harness}"
 
 # ===== 색상/심볼 =====
 if [ -t 1 ] && [ "$MODE" != "quiet" ]; then
@@ -218,6 +236,198 @@ check_9_gemini_key() {
     fi
 }
 
+# ===== GitHub 최신 SHA 조회 (1시간 캐시) =====
+check_github_latest() {
+    local cache="$HARNESS_DATA/.last-github-check"
+    local cache_ttl=3600
+
+    if [ -f "$cache" ]; then
+        local cached_ts now
+        cached_ts=$(stat -c %Y "$cache" 2>/dev/null || echo 0)
+        now=$(date +%s)
+        if [ $((now - cached_ts)) -lt $cache_ttl ]; then
+            cat "$cache"
+            return 0
+        fi
+    fi
+
+    local sha
+    sha=$(curl -fsSL --max-time 5 "$REPO_API/commits/main" 2>/dev/null \
+        | grep -oE '"sha":[[:space:]]*"[a-f0-9]+"' | head -1 \
+        | sed -E 's/.*"([a-f0-9]+)"/\1/')
+
+    if [ -n "$sha" ]; then
+        mkdir -p "$HARNESS_DATA"
+        echo "$sha" > "$cache"
+        echo "$sha"
+        return 0
+    fi
+    return 1
+}
+
+# ===== 로컬 .version 에서 commit SHA 추출 =====
+get_local_sha() {
+    if [ ! -f "$VERSION_FILE" ]; then
+        return 1
+    fi
+    grep -E '^commit:' "$VERSION_FILE" | head -1 | sed -E 's/^commit:[[:space:]]*//; s/[[:space:]]*$//'
+}
+
+# ===== 버전 비교 + 안내 =====
+check_version() {
+    [ "$SKIP_VERSION_CHECK" = "1" ] && return 0
+    [ "$MODE" = "quiet" ] && return 0
+
+    log ""
+    log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "📡 GitHub 버전 확인"
+
+    local local_sha remote_sha
+    local_sha=$(get_local_sha 2>/dev/null || true)
+    remote_sha=$(check_github_latest 2>/dev/null || true)
+
+    if [ -z "$remote_sha" ]; then
+        log "  ${WARN} GitHub 조회 실패 (오프라인 또는 일시 장애)"
+        log "  설치된 파일은 그대로 사용 가능."
+        return 0
+    fi
+
+    if [ -z "$local_sha" ]; then
+        log "  ${WARN} 로컬 버전 정보 없음 (오래된 설치)"
+        log "  최신 SHA: ${remote_sha:0:7}"
+        log "  업데이트: /harness-setup --update"
+        return 0
+    fi
+
+    if [ "$local_sha" = "$remote_sha" ]; then
+        log "  ${OK} Harness 최신 (SHA: ${local_sha:0:7})"
+    else
+        log "  ⬆ 업데이트 가능"
+        log "      현재: ${local_sha:0:7}"
+        log "      최신: ${remote_sha:0:7}"
+        log "      적용: /harness-setup --update"
+    fi
+}
+
+# ===== 업데이트 실행 =====
+do_update() {
+    log ""
+    log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "⬆ Harness 업데이트 시작"
+    log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # 0) 사전 확인
+    if ! command -v curl >/dev/null 2>&1; then
+        log "${FAIL} curl 미설치. WSL: sudo apt install -y curl"
+        return 1
+    fi
+    if ! command -v tar >/dev/null 2>&1; then
+        log "${FAIL} tar 미설치. WSL: sudo apt install -y tar"
+        return 1
+    fi
+
+    # 1) 최신 SHA 가져오기
+    local remote_sha
+    remote_sha=$(check_github_latest 2>/dev/null || true)
+    if [ -z "$remote_sha" ]; then
+        log "${FAIL} GitHub 조회 실패. 네트워크 확인 후 재시도."
+        return 1
+    fi
+    log "  최신 SHA: ${remote_sha:0:7}"
+
+    # 2) 로컬 수정 감지 (.version 보다 새로운 파일)
+    local local_modified=()
+    if [ -f "$VERSION_FILE" ]; then
+        while IFS= read -r f; do
+            local_modified+=("$f")
+        done < <(find "$SKILL_ROOT" -type f -newer "$VERSION_FILE" \
+            ! -name '.version' ! -name '*.bak-*' 2>/dev/null | head -20)
+        if [ ${#local_modified[@]} -gt 0 ]; then
+            log "  ${WARN} 로컬에서 수정된 파일 감지 (자동 백업되지만 덮어쓰기 됨):"
+            for f in "${local_modified[@]}"; do
+                log "      ${f#$SKILL_ROOT/}"
+            done
+        fi
+    fi
+
+    # 3) 백업
+    local ts backup
+    ts=$(date +%Y%m%d-%H%M%S)
+    backup="${SKILL_ROOT}.bak-${ts}"
+    if cp -r "$SKILL_ROOT" "$backup" 2>/dev/null; then
+        log "  📦 백업: $backup"
+    else
+        log "${FAIL} 백업 실패. 권한 확인."
+        return 1
+    fi
+
+    # 4) tarball 다운로드 + 추출
+    local tmp
+    tmp=$(mktemp -d -t harness-update-XXXXXX)
+    log "  📥 다운로드 중..."
+    if ! curl -fsSL --max-time 30 "$REPO_API/tarball/main" -o "$tmp/archive.tar.gz" 2>/dev/null; then
+        log "${FAIL} 다운로드 실패. 백업은 보존됨: $backup"
+        rm -rf "$tmp"
+        return 1
+    fi
+    if ! tar -xzf "$tmp/archive.tar.gz" -C "$tmp" 2>/dev/null; then
+        log "${FAIL} tar 추출 실패. 백업 보존: $backup"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    local src
+    src=$(find "$tmp" -maxdepth 1 -type d -name '*Harness-*' | head -1)
+    if [ -z "$src" ] || [ ! -d "$src/skills/harness" ]; then
+        log "${FAIL} 압축 구조 비정상. 백업 보존: $backup"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    # 5) 적용 (skill + commands)
+    log "  📂 적용 중..."
+    if cp -r "$src/skills/harness/." "$SKILL_ROOT/" 2>/dev/null; then
+        log "      skills/harness/ ✓"
+    else
+        log "${FAIL} skill 복사 실패. 롤백:"
+        log "      rm -rf '$SKILL_ROOT' && mv '$backup' '$SKILL_ROOT'"
+        rm -rf "$tmp"
+        return 1
+    fi
+
+    mkdir -p "$COMMANDS_DIR"
+    for cmd in harness-setup.md harness-review.md harness-audit.md; do
+        if [ -f "$src/commands/$cmd" ]; then
+            cp "$src/commands/$cmd" "$COMMANDS_DIR/" 2>/dev/null && log "      commands/$cmd ✓"
+        fi
+    done
+
+    # 6) 실행 권한 보정 + LF 변환
+    chmod +x "$SKILL_ROOT/core/"*.sh 2>/dev/null
+    chmod +x "$SKILL_ROOT/wrappers/"*.sh 2>/dev/null
+
+    # 7) .version 갱신
+    cat > "$VERSION_FILE" <<EOF
+commit: $remote_sha
+installed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+source: $REPO_URL
+branch: main
+EOF
+
+    # 8) 캐시 무효화 (다음 호출이 즉시 최신 확인 가능)
+    rm -f "$HARNESS_DATA/.last-github-check" 2>/dev/null
+
+    # 9) doctor-passed 마커 갱신 (전체 환경 재검진 권유)
+    rm -f "$HARNESS_DATA/.doctor-passed" 2>/dev/null
+
+    rm -rf "$tmp"
+    log ""
+    log "${OK} 업데이트 완료 (SHA: ${remote_sha:0:7})"
+    log "    백업 위치: $backup"
+    log "    재검진 권장: /harness-setup"
+    return 0
+}
+
 # ===== --fix 모드: 자동 설치 시도 =====
 do_fix() {
     if [ ${#AUTO_FIXABLE[@]} -eq 0 ]; then
@@ -245,6 +455,17 @@ do_fix() {
 }
 
 # ===== 메인 실행 =====
+
+# --update 모드 — 검진은 최소만, 업데이트 우선 실행
+if [ "$DO_UPDATE" = "1" ]; then
+    [ "$MODE" != "quiet" ] && header
+    check_1_wsl || exit 2
+    do_update || exit 1
+    log ""
+    log "🔁 환경 재검진 권장: /harness-setup"
+    exit 0
+fi
+
 [ "$MODE" != "quiet" ] && header
 
 check_1_wsl || exit 2
@@ -296,6 +517,8 @@ if [ "$FAIL_COUNT" -eq 0 ]; then
     # 마커 갱신
     mkdir -p "$HOME/.harness" 2>/dev/null || true
     touch "$HOME/.harness/.doctor-passed" 2>/dev/null || true
+    # 9/9 통과 → GitHub 버전 안내 (quiet 아닐 때만)
+    check_version
     exit 0
 fi
 

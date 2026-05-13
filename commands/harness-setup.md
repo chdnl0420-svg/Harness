@@ -1,10 +1,19 @@
 ---
-description: Harness skill 의존성 검진 + npm 패키지 자동 설치 (Windows+WSL)
+description: Harness skill 의존성 검진 + npm 자동 설치 + GitHub 최신화 확인 (Windows+WSL)
+argument-hint: '[--update] [--no-version-check]'
 ---
 
-# Harness Setup — 검진 + 자동 설치 (한 번에)
+# Harness Setup — 검진 + 자동 설치 + 버전 확인 (한 번에)
 
-이 명령은 `harness` skill이 동작하기 위한 prereq를 점검하고, **npm 패키지 누락 항목은 즉시 자동 설치**합니다.
+이 명령은 `harness` skill이 동작하기 위한 prereq를 점검하고, **npm 패키지 누락 항목은 즉시 자동 설치**하며, 모든 검진 통과 후 **GitHub 최신 버전 여부를 자동 확인**합니다.
+
+## 주요 모드
+
+| 호출 | 동작 |
+|------|------|
+| `/harness-setup` | 검진 → npm 자동 설치 → 9/9 통과 시 GitHub 버전 비교 안내 |
+| `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동) |
+| `/harness-setup --no-version-check` | GitHub 호출 skip (오프라인) |
 
 ## 동작 절차
 
@@ -29,18 +38,23 @@ description: Harness skill 의존성 검진 + npm 패키지 자동 설치 (Windo
 
 ## 실행 명령
 
+`$ARGUMENTS`를 받아 doctor 스크립트에 그대로 전달:
+
 ```bash
 SKILL_WIN="$(cmd.exe /c echo %USERPROFILE% 2>/dev/null | tr -d '\r')\\.claude\\skills\\harness"
+ARGS="$ARGUMENTS"
+# 인자 없으면 기본 --fix 모드 (검진 + npm 자동 + 버전 비교)
+if [ -z "$ARGS" ]; then ARGS="--fix"; fi
 wsl -e bash -lc '
   SKILL_WSL=$(wslpath -u "$1")
-  bash "$SKILL_WSL/core/harness-doctor.sh" --fix
+  bash "$SKILL_WSL/core/harness-doctor.sh" '"$ARGS"'
 ' _ "$SKILL_WIN"
 ```
 
-> **`/harness-setup`는 항상 `--fix` 모드로 실행됩니다.** 검진만 원하시면:
-> ```bash
-> wsl -e bash -lc 'bash ~/.claude/skills/harness/core/harness-doctor.sh'
-> ```
+지원 인자:
+- (없음) → `--fix` 자동 적용 (검진 + npm 설치 + 버전 비교)
+- `--update` → GitHub 최신으로 업데이트 (검진 skip)
+- `--no-version-check` → GitHub 호출 안 함 (오프라인용)
 
 ## Exit Code 의미
 
@@ -115,6 +129,34 @@ bash "$SKILL/core/run-interactive.sh" "📦 unzip 설치" "sudo apt update && su
 - `/harness-setup` 자체 (Codex/Gemini CLI 설치는 sudo 불필요라 inline OK, 그 외는 별창)
 - `harness` skill의 모든 단계 (Step 0~Phase 5)
 - 다른 슬래시 커맨드에서도 동일 정책 권장
+
+## GitHub 버전 확인 / 업데이트
+
+`/harness-setup` 호출 시 9/9 통과하면 자동으로 다음 정보 출력 중 하나:
+
+```
+✅ Harness 최신 (SHA: abc1234)
+```
+또는
+```
+⬆ 업데이트 가능
+    현재: abc1234
+    최신: def5678
+    적용: /harness-setup --update
+```
+또는 (오프라인 / GitHub 일시 장애):
+```
+⚠ GitHub 조회 실패 (오프라인 또는 일시 장애)
+설치된 파일은 그대로 사용 가능.
+```
+
+**업데이트 적용** (`/harness-setup --update`):
+- ✅ `~/.claude/skills/harness.bak-<timestamp>` 자동 백업
+- ✅ tarball 다운로드 → 추출 → 적용
+- ✅ `.version` 갱신 (commit SHA + ISO 타임스탬프)
+- ✅ `~/.harness/.doctor-passed` 마커 초기화 (재검진 권유)
+
+캐시: `~/.harness/.last-github-check` (1시간 TTL).
 
 ## Related
 

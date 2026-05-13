@@ -568,12 +568,105 @@ while ITER <= 3:
 1. **Write 도구로** result-<id>.md 작성 (`templates/result.md`)
 2. plan.md `status: completed` (Edit)
 3. progress.md `status: completed` (Edit)
-4. 사용자에게 최종 요약:
+4. **🚨 종합 보고서 작성 (필수)** — 아래 "종합 보고서 (Stop Report)" 섹션 참조. `report-<id>.md` 를 `.harness/results/` 에 작성.
+5. 사용자에게 최종 요약:
    ```
    ## ✅ <REQUEST_ID> 완료
    <summary, files, review rounds>
    📂 .harness/results/result-<id>.md
+   📖 .harness/results/report-<id>.md  ← 읽기 쉬운 종합 보고서
    ```
+
+---
+
+## 🚨 종합 보고서 (Stop Report) — 모든 중단 시점에 필수
+
+**언제 작성?** harness 워크플로우가 **어떤 이유로든 멈출 때**:
+- Phase 5 정상 완료
+- 사용자가 중단 요청 (Ctrl+C, "그만", "취소")
+- 3 iter 한계 도달 (Phase 1.4 revision, Phase 4 review)
+- exit 2 (로그인 필요), exit 3 (quota), 기타 에러로 중단
+- `/harness status` 직후 사용자가 더 진행하지 않을 때
+
+**파일**: `<PROJECT>/.harness/results/report-<REQUEST_ID>.md` (Write 도구로 작성)
+**완료 시**: 기존 `result-<id>.md` 옆에 추가 (대체 아님)
+**중단 시**: 단독으로 작성하고 frontmatter `status: stopped` 또는 `status: incomplete`
+
+### 작성 원칙: 중학생 수준 가독성
+
+이 보고서는 **중학생도 막힘없이 읽을 수 있어야** 한다. 비기술자 사용자, 미래의 본인, 동료가 이 작업을 처음 보고 빠르게 이해하는 용도.
+
+**문체 규칙**:
+- 짧은 문장 (한 문장 30자 이내 목표, 절대 두 줄 넘기지 않기)
+- 한글 우선. 영어 용어는 한 번 풀어 설명: "Codex(코드 리뷰 AI)"
+- 전문용어 줄이기: "리팩토링" → "코드 정리", "iterate" → "반복", "fallback" → "대안 사용"
+- 능동태, 일상어. "수행되었다" 대신 "했다"
+- 약어/이모지 최소. 강조는 **굵게** 만 (이모지 남발 금지)
+- 코드 블록은 짧게. 긴 diff/스택트레이스 금지 — 산출물 경로만 링크
+- 5W1H: 누가(어느 AI), 언제(단계), 무엇을, 왜, 어떻게, 결과
+
+### 표준 구조 (이 순서대로)
+
+```markdown
+---
+request_id: <REQUEST_ID>
+status: completed | stopped | incomplete
+generated_at: <YYYY-MM-DD HH:MM>
+---
+
+# 작업 보고서: <한 줄 제목>
+
+## 1. 한 줄 요약
+무엇을 하려 했고, 결과가 어떻게 됐는지 한 문장.
+
+## 2. 사용자 요청
+원래 어떤 요청이었나요? (사용자가 입력한 원문 그대로)
+
+## 3. 진행한 단계 (시간 순서)
+중학생도 따라 읽을 수 있게 단계별로:
+1. **계획 짜기 (Phase 1)** — 무엇을 어떻게 만들지 정했어요. Codex 가 검토했고, ○○ 항목을 보강했어요.
+2. **자료 조사 (Phase 2, 했다면)** — Gemini 한테 ○○를 물어봤어요. 결과: ...
+3. **실제 작업 (Phase 3)** — 어떤 파일을 만들고 고쳤는지.
+4. **코드 검토 (Phase 4)** — Codex 가 ○회 검토했어요. 매번 무엇을 지적했고 어떻게 고쳤는지.
+5. **마무리 (Phase 5)** — 또는 "여기서 멈췄어요" + 멈춘 이유.
+
+## 4. 만든/고친 파일
+- `path/to/foo.ts` (새로 만듦) — 무엇을 하는 파일인지 한 줄
+- `path/to/bar.ts` (고침) — 어떤 부분을 왜 고쳤는지 한 줄
+
+## 5. 외부 AI 호출 내역
+| 단계 | AI | 횟수 | 결과 |
+|------|----|----|------|
+| Phase 1.2 | Codex | 1회 | 통과 / ○건 지적 |
+| Phase 4 | Codex | 2회 | iter 1 → 수정 → iter 2 통과 |
+| Research | Gemini | 1회 | ○○ 정보 받음 |
+
+## 6. 남은 일 / 알아둘 점
+- 아직 못 한 것: ...
+- 다음에 만지면 위험한 곳: ...
+- 테스트가 더 필요한 부분: ...
+
+## 7. 멈춘 이유 (중단된 경우만)
+어디서, 왜 멈췄는지 솔직하게.
+다시 시작하려면 어떻게 하면 되는지: `/harness resume <REQUEST_ID>`
+
+## 8. 산출물 경로
+- 계획서: `.harness/plans/plan-<id>.md`
+- 진행 기록: `.harness/progress/progress-<id>.md`
+- 리뷰 결과: `.harness/reviews/review-<id>-iter-*.md`
+- (있다면) 조사 자료: `.harness/research/research-<id>-*.md`
+- 결과 요약: `.harness/results/result-<id>.md`
+```
+
+### 자체 점검 (작성 후 STOP 전 필수)
+
+이 4가지 모두 OK 인지 확인:
+1. **중학생 테스트**: 중학생이 이 보고서만 보고 "어떤 일이 일어났는지" 말할 수 있나?
+2. **전문용어 검사**: 풀어 설명 없이 등장한 영어 약자/기술용어 0개?
+3. **문장 길이**: 한 문장이 두 줄 넘는 곳 없나?
+4. **솔직함**: 멈췄으면 "멈췄다"고 명시했나? 실패를 미화하지 않았나?
+
+하나라도 NO → 다시 쓴다.
 
 ---
 

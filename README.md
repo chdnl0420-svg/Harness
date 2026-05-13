@@ -184,7 +184,7 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 
 | 변수 | 기본값 | 용도 |
 |------|--------|------|
-| `HARNESS_IDLE_LIMIT` | `180` | Codex/Gemini stdout 무응답 N초 시 abort. Codex가 계속 출력하면 무한 대기 |
+| `HARNESS_IDLE_LIMIT` | `180` | Codex/Gemini 무응답 N초 시 abort. **idle은 tmux pane content hash 변화로 판정** (Codex TUI spinner/token-count 갱신도 활동으로 인식). **`0` 설정 시 idle 검사 자체 비활성** (HARD_LIMIT만 적용) |
 | `HARNESS_HARD_LIMIT` | `3600` | runaway 안전망 (절대 상한, 1시간) |
 | `HARNESS_WAIT_LIMIT` | (deprecated) | 설정 시 `HARNESS_HARD_LIMIT`으로 매핑 (하위호환) |
 | `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 tmux attach 별창 비활성 (Codex는 여전히 tmux detached로 실행되지만 사용자에게 안 보임) |

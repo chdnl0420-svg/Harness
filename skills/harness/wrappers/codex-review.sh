@@ -304,9 +304,14 @@ tmux send-keys -t "$SESSION_NAME" Enter
 echo "  ✅ prompt 전송 + Enter" >&2
 
 # ===== 폴링 (sentinel + pane 종료 + idle + 에러 패턴) =====
+# Idle 감지: pane capture **내용 hash** 변화로 활동 판정.
+# - Codex TUI는 spinner/token-count가 같은 위치에서 갱신 → 길이는 같고 내용만 변함.
+# - md5sum 비교로 1글자 변화도 활동으로 인식. IDLE 카운터 리셋.
+# - HARNESS_IDLE_LIMIT=0 으로 idle 비활성화 가능 (HARD_LIMIT만 적용).
 WAITED=0
 IDLE=0
-LAST_SIZE=0
+LAST_CAPTURE_HASH=""
+LAST_SENTINEL_SIZE=0
 HEARTBEAT=0
 END_REASON=""
 
@@ -320,7 +325,7 @@ while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
         break
     fi
 
-    # 2. tmux pane 종료 감지 (codex가 죽었거나 사용자가 끔)
+    # 2. tmux pane 종료 감지
     if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
         END_REASON="pane-died"
         break
@@ -331,7 +336,7 @@ while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
         break
     fi
 
-    # 3. 에러 패턴 (capture-pane 결과를 scan)
+    # 3. 에러 패턴 (capture-pane scan)
     CAPTURE=$(tmux capture-pane -t "$SESSION_NAME" -p -S - 2>/dev/null)
     if echo "$CAPTURE" | grep -qiE "codex_core::tools::router:[[:space:]]*error=|write_stdin failed: stdin is closed for this session"; then
         END_REASON="codex-internal-error"
@@ -346,29 +351,39 @@ while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
         break
     fi
 
-    # 4. idle / heartbeat (sentinel 크기 + capture 크기 변화 추적)
-    CURRENT_SIZE=0
-    if [ -f "$SENTINEL" ]; then
-        CURRENT_SIZE=$(stat -c %s "$SENTINEL" 2>/dev/null || echo 0)
-    fi
-    # 캡처도 변화 신호로 사용
-    CAPTURE_HASH_SIZE=${#CAPTURE}
-    TOTAL_SIGNAL=$((CURRENT_SIZE + CAPTURE_HASH_SIZE))
+    # 4. idle 검사 — IDLE_LIMIT=0 이면 skip (사용자가 비활성화)
+    if [ "$IDLE_LIMIT" -gt 0 ]; then
+        # sentinel 크기 변화
+        CURRENT_SENTINEL_SIZE=0
+        if [ -f "$SENTINEL" ]; then
+            CURRENT_SENTINEL_SIZE=$(stat -c %s "$SENTINEL" 2>/dev/null || echo 0)
+        fi
+        # capture 내용 hash
+        CURRENT_CAPTURE_HASH=$(printf '%s' "$CAPTURE" | md5sum 2>/dev/null | awk '{print $1}')
 
-    if [ "$TOTAL_SIGNAL" -gt "$LAST_SIZE" ]; then
-        IDLE=0
-        LAST_SIZE=$TOTAL_SIGNAL
-    else
-        IDLE=$((IDLE + 2))
-    fi
-    if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
-        END_REASON="idle-timeout"
-        break
+        if [ "$CURRENT_SENTINEL_SIZE" -gt "$LAST_SENTINEL_SIZE" ] || \
+           [ "$CURRENT_CAPTURE_HASH" != "$LAST_CAPTURE_HASH" ]; then
+            IDLE=0
+            LAST_SENTINEL_SIZE=$CURRENT_SENTINEL_SIZE
+            LAST_CAPTURE_HASH=$CURRENT_CAPTURE_HASH
+        else
+            IDLE=$((IDLE + 2))
+        fi
+        if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
+            END_REASON="idle-timeout"
+            break
+        fi
     fi
 
     if [ $((WAITED - HEARTBEAT)) -ge 30 ]; then
         HEARTBEAT=$WAITED
-        echo "  ⏱  Codex 작업 중... (${WAITED}s elapsed, sentinel $([ -f "$SENTINEL" ] && echo "${CURRENT_SIZE}B" || echo "MISSING"))" >&2
+        SENTINEL_INFO="MISSING"
+        if [ -f "$SENTINEL" ]; then
+            SENTINEL_INFO="$(stat -c %s "$SENTINEL" 2>/dev/null || echo 0)B"
+        fi
+        IDLE_INFO=""
+        [ "$IDLE_LIMIT" -gt 0 ] && IDLE_INFO=", idle=${IDLE}s/${IDLE_LIMIT}s"
+        echo "  ⏱  Codex 작업 중... (${WAITED}s elapsed, sentinel ${SENTINEL_INFO}${IDLE_INFO})" >&2
     fi
 done
 
@@ -449,6 +464,11 @@ $FALLBACK_CAPTURE"
             echo "🚨 Codex idle ${IDLE_LIMIT}s — exit 124, 총 경과 ${ELAPSED}s"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "tmux 세션 유지 (디버그): tmux attach -t $SESSION_NAME"
+            echo ""
+            echo "💡 Codex가 실제로 작업 중인데 idle로 잘못 감지된 경우:"
+            echo "   - HARNESS_IDLE_LIMIT=0           (idle 검사 자체 비활성, HARD_LIMIT만 적용)"
+            echo "   - HARNESS_IDLE_LIMIT=600         (idle 한도 연장, 기본 180s → 10분)"
+            echo "   - HARNESS_HARD_LIMIT=7200        (전체 한도 연장)"
         } >&2
         OUTPUT="ERROR: idle timeout after ${IDLE_LIMIT}s with no progress"
         EXIT_CODE=124

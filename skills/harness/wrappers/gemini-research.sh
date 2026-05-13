@@ -157,7 +157,14 @@ if ! command -v wt.exe >/dev/null 2>&1; then
     USE_VISIBLE=0
 fi
 
-WAIT_LIMIT=${HARNESS_WAIT_LIMIT:-600}
+# Wait 정책 — idle 기반 + hard limit safety net (Codex wrapper와 동일):
+#   IDLE_LIMIT  : 마지막 stdout byte 이후 N초 무응답이면 멈춤으로 간주
+#   HARD_LIMIT  : runaway 안전망
+IDLE_LIMIT=${HARNESS_IDLE_LIMIT:-180}
+HARD_LIMIT=${HARNESS_HARD_LIMIT:-3600}
+if [ -n "${HARNESS_WAIT_LIMIT:-}" ]; then
+    HARD_LIMIT=$HARNESS_WAIT_LIMIT  # 하위호환
+fi
 
 if [ "$USE_VISIBLE" = "1" ]; then
     INNER=$(mktemp /tmp/harness-gemini-inner-XXXXXX.sh)
@@ -216,18 +223,41 @@ EOF
         wsl.exe -- bash "$INNER" >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
-    echo "🪟 새 Windows Terminal 창에서 Gemini 실행 중... (mode: ${MODE}, wait limit: ${WAIT_LIMIT}s)" >&2
+    echo "🪟 새 Windows Terminal 창에서 Gemini 실행 중... (idle limit: ${IDLE_LIMIT}s, hard limit: ${HARD_LIMIT}s)" >&2
 
+    # idle 기반 대기: stdout이 계속 자라면 IDLE 카운터 리셋, 무응답일 때만 abort
     WAITED=0
-    while [ ! -f "$DONE_FILE" ] && [ $WAITED -lt $WAIT_LIMIT ]; do
-        sleep 1
-        WAITED=$((WAITED + 1))
+    IDLE=0
+    LAST_SIZE=0
+    HEARTBEAT=0
+    while [ ! -f "$DONE_FILE" ] && [ "$WAITED" -lt "$HARD_LIMIT" ]; do
+        sleep 2
+        WAITED=$((WAITED + 2))
+        CURRENT_SIZE=$(stat -c %s "$RESULT_FILE" 2>/dev/null || echo 0)
+        if [ "$CURRENT_SIZE" -gt "$LAST_SIZE" ]; then
+            IDLE=0
+            LAST_SIZE=$CURRENT_SIZE
+        else
+            IDLE=$((IDLE + 2))
+        fi
+        if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
+            break
+        fi
+        if [ $((WAITED - HEARTBEAT)) -ge 30 ]; then
+            HEARTBEAT=$WAITED
+            echo "  ⏱  Gemini 작업 중... (${WAITED}s elapsed, ${CURRENT_SIZE} bytes captured)" >&2
+        fi
     done
 
     if [ ! -f "$DONE_FILE" ]; then
-        echo "🚨 Gemini 응답 ${WAIT_LIMIT}s 초과 — 새 창 확인 필요" >&2
+        if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
+            echo "🚨 Gemini 무응답 ${IDLE_LIMIT}s — 멈춘 것으로 판단 (총 경과 ${WAITED}s)" >&2
+        else
+            echo "🚨 Gemini hard limit ${HARD_LIMIT}s 초과 (runaway 안전망)" >&2
+        fi
+        echo "    새 Windows Terminal 창 직접 확인 권장" >&2
         EXIT_CODE=124
-        OUTPUT="ERROR: timeout after ${WAIT_LIMIT}s"
+        OUTPUT=$(cat "$RESULT_FILE" 2>/dev/null || echo "ERROR: timeout, no output captured")
     else
         EXIT_CODE=$(cat "$EXIT_FILE" 2>/dev/null || echo 1)
         OUTPUT=$(cat "$RESULT_FILE" 2>/dev/null || echo "ERROR: result file missing")

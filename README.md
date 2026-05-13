@@ -180,6 +180,21 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동 생성) |
 | `/harness-review` | Codex로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
 
+### 환경변수
+
+| 변수 | 기본값 | 용도 |
+|------|--------|------|
+| `HARNESS_IDLE_LIMIT` | `180` | Codex/Gemini stdout 무응답 N초 시 abort. Codex가 계속 출력하면 무한 대기 |
+| `HARNESS_HARD_LIMIT` | `3600` | runaway 안전망 (절대 상한, 1시간) |
+| `HARNESS_WAIT_LIMIT` | (deprecated) | 설정 시 `HARNESS_HARD_LIMIT`으로 매핑 (하위호환) |
+| `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 별창 모드 비활성 (인라인 fallback) |
+| `HARNESS_GEMINI_MODEL` | (auto) | Gemini CLI 모델 override (예: `gemini-3-flash-preview`) |
+| `HARNESS_SKIP_DRIFT_CHECK` | (unset) | `1` 설정 시 drift 검사 skip (CI/자동화) |
+| `HARNESS_REPO_URL` | (default) | 업데이트 대상 GitHub URL override |
+| `HARNESS_REPO_API` | (default) | 업데이트 대상 GitHub API URL override |
+
+**중요**: `HARNESS_IDLE_LIMIT`이 wall-clock 타임아웃을 대체합니다. Codex가 깊은 코드 분석/도구 호출로 5-10분씩 작업해도 stdout으로 reasoning 로그가 계속 흐르면 멈추지 않고 끝까지 기다림. 진짜 hang(N초 동안 0 byte도 안 늘어남)일 때만 abort.
+
 ### Drift 검사 (자동)
 
 `/harness <task>` 호출 시 Step 0에서 **마스터 (`~/.claude/skills/harness/{core,wrappers}/*.sh`) vs 프로젝트 (`<PROJECT>/.harness/{core,wrappers}/*.sh`)** sha256 해시 비교. 차이 있으면 사용자에게 4지선다:

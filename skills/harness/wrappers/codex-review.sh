@@ -169,7 +169,17 @@ if ! command -v wt.exe >/dev/null 2>&1; then
     USE_VISIBLE=0
 fi
 
-WAIT_LIMIT=${HARNESS_WAIT_LIMIT:-600}
+# Wait 정책 — 두 단계:
+#   1) IDLE_LIMIT  : 마지막 stdout byte 이후 N초 무응답이면 진짜 멈춤으로 간주
+#                    Codex가 reasoning/tool 호출로 계속 출력 중이면 무한 대기.
+#   2) HARD_LIMIT  : runaway 안전망 (Codex가 hang 무한루프인 경우)
+# 둘 다 env로 override 가능. 기본값은 일반 deep code analysis 충분히 커버.
+IDLE_LIMIT=${HARNESS_IDLE_LIMIT:-180}
+HARD_LIMIT=${HARNESS_HARD_LIMIT:-3600}
+# 하위호환: 기존 HARNESS_WAIT_LIMIT 설정돼 있으면 HARD_LIMIT으로 매핑
+if [ -n "${HARNESS_WAIT_LIMIT:-}" ]; then
+    HARD_LIMIT=$HARNESS_WAIT_LIMIT
+fi
 
 if [ "$USE_VISIBLE" = "1" ]; then
     # ─── Visible window mode (Option B) ───────────────────────
@@ -209,19 +219,43 @@ EOF
         wsl.exe -- bash "$INNER" >/dev/null 2>&1 &
     disown 2>/dev/null || true
 
-    echo "🪟 새 Windows Terminal 창에서 Codex 실행 중... (mode: ${MODE}, wait limit: ${WAIT_LIMIT}s)" >&2
+    echo "🪟 새 Windows Terminal 창에서 Codex 실행 중... (idle limit: ${IDLE_LIMIT}s, hard limit: ${HARD_LIMIT}s)" >&2
 
-    # 부모: done flag 동기 wait
+    # 부모: done flag 동기 wait. Codex가 stdout으로 뭐든 쓰고 있으면 (reasoning, tool 호출 로그)
+    # IDLE 카운터 리셋 → 무한 대기. 진짜 N초 무응답일 때만 abort.
     WAITED=0
-    while [ ! -f "$DONE_FILE" ] && [ $WAITED -lt $WAIT_LIMIT ]; do
-        sleep 1
-        WAITED=$((WAITED + 1))
+    IDLE=0
+    LAST_SIZE=0
+    HEARTBEAT=0
+    while [ ! -f "$DONE_FILE" ] && [ "$WAITED" -lt "$HARD_LIMIT" ]; do
+        sleep 2
+        WAITED=$((WAITED + 2))
+        CURRENT_SIZE=$(stat -c %s "$RESULT_FILE" 2>/dev/null || echo 0)
+        if [ "$CURRENT_SIZE" -gt "$LAST_SIZE" ]; then
+            IDLE=0
+            LAST_SIZE=$CURRENT_SIZE
+        else
+            IDLE=$((IDLE + 2))
+        fi
+        if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
+            break  # 진짜 hang
+        fi
+        # 30초마다 heartbeat 메시지 (UX — 사용자에게 "기다리는 중")
+        if [ $((WAITED - HEARTBEAT)) -ge 30 ]; then
+            HEARTBEAT=$WAITED
+            echo "  ⏱  Codex 작업 중... (${WAITED}s elapsed, ${CURRENT_SIZE} bytes captured)" >&2
+        fi
     done
 
     if [ ! -f "$DONE_FILE" ]; then
-        echo "🚨 Codex 응답 ${WAIT_LIMIT}s 초과 — 새 창 확인 필요" >&2
+        if [ "$IDLE" -ge "$IDLE_LIMIT" ]; then
+            echo "🚨 Codex 무응답 ${IDLE_LIMIT}s — 멈춘 것으로 판단 (총 경과 ${WAITED}s)" >&2
+        else
+            echo "🚨 Codex hard limit ${HARD_LIMIT}s 초과 (runaway 안전망)" >&2
+        fi
+        echo "    새 Windows Terminal 창 직접 확인하여 진행 상태 확인 권장" >&2
         EXIT_CODE=124
-        OUTPUT="ERROR: timeout after ${WAIT_LIMIT}s"
+        OUTPUT=$(cat "$RESULT_FILE" 2>/dev/null || echo "ERROR: timeout, no output captured")
     else
         EXIT_CODE=$(cat "$EXIT_FILE" 2>/dev/null || echo 1)
         OUTPUT=$(cat "$RESULT_FILE" 2>/dev/null || echo "ERROR: result file missing")

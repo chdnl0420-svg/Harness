@@ -560,6 +560,25 @@ REQUEST_ID: `YYYYMMDD-HHMMSS-<slug>`
     - **exit 2 (로그인 필요)** → 워크플로우 즉시 중단, auth-helper 창 띄움, 사용자 로그인 완료까지 대기. fallback 금지.
     - **exit 3 (Quota 소진)** → Claude로 fallback (Phase 4는 code-reviewer agent, Phase 1.2/Research는 Claude self).
 11. **응답 임의 해석 금지** — `AskUserQuestion` 또는 자유 입력 응답이 (a) 명시 선택지 매칭 또는 (b) 명확한 결정/지시가 아니면, 절대 임의 해석으로 분기 진행 금지. 질문/되묻기/모호한 응답은 (c)로 분류, 답변/설명만 제공하고 다시 묻기. 부분 매칭이어도 미답변 항목까지 함께 보류. 상세는 Phase 1.3 "응답 분류 게이트" 참조.
+12. **자동모드 운영 자율성 (Auto-Mode Autonomy)** — `/harness` 실행 중 **작업 수행에 필요한 운영적 결정은 사용자에게 묻지 말고 스스로 결정**한다. AskUserQuestion 은 **계획상 분기/설계 선택**에만 사용.
+
+    **스스로 결정 (질문 금지)**:
+    - 파일 권한/chmod, 읽기전용 속성 해제, `git update-index --no-skip-worktree`
+    - 디렉토리 생성, 임시 파일 정리, `.harness/` 하위 생성
+    - 패키지 매니저 선택이 자명할 때 (lockfile 존재 시 그것 사용)
+    - linter/formatter auto-fix, 명백한 import 정리
+    - 빌드/테스트 명령 (`package.json` scripts 등에 정의된 표준 명령)
+    - 동일 의미의 동등한 도구 선택 (예: `rg` vs `grep`)
+    - retry/재시도 (transient 실패)
+
+    **반드시 사용자 결정**:
+    - 계획상 설계 분기 (Phase 1.3 옵션 선택)
+    - 파괴적 작업 (`git reset --hard`, force-push, drop table, 파일 대량 삭제)
+    - 외부 시스템에 영향 (PR/issue 생성, Slack/메일 발송, 배포)
+    - 인증/secret 필요 (OAuth, sudo 비밀번호) — `core/run-interactive.sh` 별창 패턴
+    - exit 2 (로그인 필요) 발생 시 auth-helper 창
+
+    **판단 기준**: "이 결정이 되돌릴 수 없거나, 사용자 외부에 영향을 주거나, 설계 의도에 관한 것인가?" — 셋 다 아니면 자율 결정.
 
 ---
 

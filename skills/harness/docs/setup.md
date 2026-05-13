@@ -34,24 +34,24 @@
 | 6 | Codex CLI | `command -v codex` | **자동 설치:** `/harness-setup --fix` |
 | 7 | Codex 로그인 | `~/.codex/auth.json` 또는 `config.toml` | 새 터미널에서 `codex login` (interactive) |
 | 8 | Gemini CLI | `command -v gemini` | **자동 설치:** `/harness-setup --fix` |
-| 9 | Gemini API key | `$GEMINI_API_KEY` env 또는 `~/.bashrc`의 export 라인 | 1. https://aistudio.google.com/apikey 에서 발급<br>2. `nano ~/.bashrc` 열어 `export GEMINI_API_KEY="<key>"` 추가<br>3. `source ~/.bashrc` |
+| 9 | Gemini API key | `$GEMINI_API_KEY` env 또는 `~/.bashrc`의 export 라인 | 1. https://aistudio.google.com/apikey 에서 발급<br>2. **WSL 터미널에 한 줄 붙여넣기** (따옴표 안만 실제 키로 교체):<br>`bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키"`<br>3. 자동으로: 형식 검증 + 백업 + `~/.bashrc` 갱신 + 현재 셸 export<br>4. 검증: Claude Code에서 `/harness-setup` |
 
 ---
 
 ## 자동 설치 정책
 
-| 자동 (`--fix`) | 가이드만 |
-|---------------|---------|
-| `@openai/codex` npm 패키지 | NVM 설치 (system) |
-| `@google/gemini-cli` npm 패키지 | Node 버전 변경 |
-| | OS 도구 (sudo apt) |
-| | Codex 로그인 (interactive 필요) |
-| | Gemini API key (보안 + 사용자 입력) |
+| 자동 (`--fix`) | 반자동 (헬퍼 한 줄) | 가이드만 |
+|---------------|--------------------|---------|
+| `@openai/codex` npm 패키지 | Gemini API key (`setup-gemini-key.sh "AIzaSy..."`) | NVM 설치 (system) |
+| `@google/gemini-cli` npm 패키지 | | Node 버전 변경 |
+|  | | OS 도구 (sudo apt) |
+|  | | Codex 로그인 (OAuth) |
 
 이유:
 - **npm 패키지** = user-local, sudo 불필요 → 안전한 자동 설치
+- **Gemini API key** = 사용자가 발급은 직접 해야 하지만 등록은 한 줄 명령으로 자동 처리 (형식 검증 + bashrc 갱신 + 현재 셸 export)
 - **OS 도구** = sudo 필요 → 자동화 시 권한 거부 빈도가 높아 사용자 직접 권장
-- **인증/API key** = 사용자 입력 또는 brower OAuth → 자동화 불가
+- **Codex 로그인** = OAuth 브라우저 인증 → 자동화 불가
 
 ---
 
@@ -95,7 +95,13 @@ graph TD
 ### 5. API key 만료 (Google 자동 회수)
 **증상:** `API key expired. Please renew the API key.` HTTP 400
 **원인:** Google이 공개 위치(GitHub, 채팅 로그 등)에 노출된 키를 자동 감지해 무효화
-**해결:** 새 키 발급 + bashrc 갱신. **절대 채팅에 키 붙여넣지 말것.**
+**해결:**
+1. https://aistudio.google.com/apikey 에서 **이전 키 삭제** + **새 키 발급**
+2. WSL 터미널에서 한 줄로 등록 (따옴표 안만 새 키로 교체):
+   ```bash
+   bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_새_키"
+   ```
+3. **절대 채팅·코드·공개 repo에 키 붙여넣지 말 것.**
 
 ---
 

@@ -39,31 +39,87 @@
 
 ## 🚀 설치
 
-### 옵션 A: 빠른 설치 (한 줄 복사)
+세 가지 방법 중 환경에 맞는 것 선택. **방법 1(PowerShell)** 이 가장 간단합니다 — WSL 미설치 PC에서도 파일 설치만 먼저 끝낼 수 있음.
+
+### 방법 1: PowerShell 한 줄 (WSL 불필요 ⭐ 추천)
+
+PowerShell (관리자 아니어도 OK) 열고 그대로 붙여넣기:
+
+```powershell
+$ErrorActionPreference = "Stop"
+$url = "https://github.com/chdnl0420-svg/Harness/archive/refs/heads/main.zip"
+$tmp = "$env:TEMP\harness-install-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
+$zip = "$tmp.zip"
+$claude = "$env:USERPROFILE\.claude"
+
+Write-Host "📥 Downloading..." -ForegroundColor Cyan
+Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+
+Write-Host "📦 Extracting..." -ForegroundColor Cyan
+Expand-Archive -Path $zip -DestinationPath $tmp -Force
+$src = Get-ChildItem $tmp -Directory | Select-Object -First 1
+
+Write-Host "📂 Installing to $claude ..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Force -Path "$claude\skills","$claude\commands" | Out-Null
+Copy-Item -Path "$($src.FullName)\skills\harness" -Destination "$claude\skills\" -Recurse -Force
+Copy-Item -Path "$($src.FullName)\commands\harness-setup.md" -Destination "$claude\commands\" -Force
+
+Write-Host "🧹 Cleanup..." -ForegroundColor Cyan
+Remove-Item -Path $zip,$tmp -Recurse -Force -ErrorAction SilentlyContinue
+
+Write-Host ""
+Write-Host "✅ 파일 설치 완료" -ForegroundColor Green
+Write-Host ""
+Write-Host "다음 단계:" -ForegroundColor Yellow
+Write-Host "  1. WSL + Ubuntu 미설치 시 (관리자 PowerShell): wsl --install -d Ubuntu  → 재부팅"
+Write-Host "  2. Claude Code 재시작"
+Write-Host "  3. Claude Code에서: /harness-setup"
+Write-Host "     → 9개 prereq 검진. 누락 항목은 화면 안내대로 처리."
+```
+
+**필요 조건**: PowerShell 5.0+ (Windows 10/11 기본 포함) + 인터넷. git/WSL 없어도 됨.
+
+### 방법 2: WSL bash 한 줄 (이미 WSL 사용 중인 경우)
+
+WSL Ubuntu 터미널 또는 Git Bash에서:
 
 ```bash
-# WSL bash 또는 Git Bash에서
-git clone https://github.com/chdnl0420-svg/Harness.git /tmp/harness-install && \
-  cp -r /tmp/harness-install/skills/harness "$HOME/.claude/skills/" && \
-  cp /tmp/harness-install/commands/harness-setup.md "$HOME/.claude/commands/" && \
-  echo "✅ 설치 완료. Claude Code에서 /harness-setup 실행."
+git clone https://github.com/chdnl0420-svg/Harness.git /tmp/h && \
+W=$(cmd.exe /c "echo %USERNAME%" | tr -d '\r\n') && \
+mkdir -p "/mnt/c/Users/$W/.claude/skills" "/mnt/c/Users/$W/.claude/commands" && \
+cp -r /tmp/h/skills/harness "/mnt/c/Users/$W/.claude/skills/" && \
+cp /tmp/h/commands/harness-setup.md "/mnt/c/Users/$W/.claude/commands/" && \
+chmod +x "/mnt/c/Users/$W/.claude/skills/harness/"{core,wrappers}/*.sh && \
+rm -rf /tmp/h && \
+echo "✅ 설치 완료"
 ```
 
-### 옵션 B: 수동 복사
+### 방법 3: 수동 복사
 
+저장소 clone 또는 ZIP 다운로드 후:
 ```
 clone한 디렉토리/
-├── skills/harness/        → ~/.claude/skills/harness/
-└── commands/harness-setup.md → ~/.claude/commands/harness-setup.md
+├── skills/harness/           → %USERPROFILE%\.claude\skills\harness\
+└── commands/harness-setup.md → %USERPROFILE%\.claude\commands\harness-setup.md
 ```
 
-### 설치 후 검증
+---
 
-Claude Code에서:
-```
-/harness-setup
-```
-→ 9/9 ✅ 통과해야 사용 가능. 누락 항목은 화면 안내대로 처리.
+### 설치 후 다음 단계
+
+1. **WSL + Ubuntu 미설치 시** (관리자 PowerShell):
+   ```powershell
+   wsl --install -d Ubuntu
+   ```
+   재부팅 → Ubuntu 첫 실행 (사용자명/비밀번호 설정).
+
+2. **Claude Code 재시작** (skill 목록 갱신).
+
+3. **Claude Code에서**:
+   ```
+   /harness-setup
+   ```
+   → 9/9 ✅ 통과해야 사용 가능. 누락 항목(Codex 로그인, Gemini API key 등)은 화면 안내대로 처리.
 
 ---
 

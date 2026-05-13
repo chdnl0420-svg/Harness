@@ -48,8 +48,12 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" "<title>" "<command>
 
 ### 올바른 wrapper 호출 패턴 (프로젝트 상대)
 
+**🚨 대용량 prompt (>50KB 또는 다중 파일 inline) 는 반드시 `--prompt-file` 사용.**
+인라인 인자 전달은 Linux ARG_MAX (~128KB) + WSL 경계에서 "Argument list too long" 으로 실패함.
+실측: plan/critique 같은 짧은 텍스트는 인자 OK, code review 의 변경 파일 전수 inline 은 거의 항상 file 필요.
+
+**패턴 A — 소형 prompt (인자 직접 전달)**:
 ```bash
-# Step 0 부트스트랩 이후 모든 호출은 프로젝트 상대 경로
 PROJECT_WIN="$(pwd -W 2>/dev/null || pwd)"
 wsl -e bash -lc '
   PROJECT_WSL=$(wslpath -u "$1")
@@ -57,12 +61,38 @@ wsl -e bash -lc '
 ' _ "$PROJECT_WIN" "$PROMPT"
 ```
 
+**패턴 B — 대용량 prompt (file 전달, 권장)**:
+```bash
+# 1) Write 도구로 prompt 를 .harness/reviews/_iter-N-input.txt 에 저장
+# 2) WSL 경로로 변환 후 --prompt-file 로 전달 (forward slash 로 통일)
+PROJECT_WIN="$(pwd -W 2>/dev/null || pwd)"
+PROMPT_FILE_WIN="$PROJECT_WIN/.harness/reviews/_iter-N-input.txt"
+wsl -e bash -lc '
+  PROJECT_WSL=$(wslpath -u "$1")
+  PROMPT_WSL=$(wslpath -u "$2")
+  bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode code --prompt-file "$PROMPT_WSL"
+' _ "$PROJECT_WIN" "$PROMPT_FILE_WIN"
+```
+
+**경로 주의 — slash 통일**:
+- Git Bash 의 `pwd -W` 는 forward slash 반환: `C:/Project/.../X`
+- 이를 추가 경로와 합칠 때 backslash 섞으면 `wslpath` 실패 → 항상 forward slash:
+  - GOOD: `"$PROJECT_WIN/.harness/reviews/..."`
+  - BAD:  `"$PROJECT_WIN\\.harness\\reviews\\..."`
+
 ❌ **절대 사용 금지**:
 ```bash
 bash ~/.harness/wrappers/codex-review.sh ...   # Git Bash가 ~ 잘못 해석
 /home/<user>/.harness/...                       # 사용자명/경로 하드코딩
 wsl -e bash -d Ubuntu-24.04 ...                 # distro 이름 하드코딩
+"$PROJECT_WIN\\.harness\\..."                   # backslash 혼합 → wslpath 실패
 ```
+
+### Wrapper 입력 우선순위 (codex-review.sh / gemini-research.sh 공통)
+
+1. `--prompt-file <path>` (있으면 파일에서 읽음, 대용량 권장)
+2. 첫 번째 positional 인자
+3. stdin (`cat | wrapper`) — wsl 경계 통과 시 신뢰성 낮음, file 사용 권장
 
 ---
 
@@ -250,12 +280,26 @@ Read tool: <PROJECT_ROOT>/.harness/plans/plan-<id>.md
 
 **환경별 올바른 호출 (Step 0에서 PROJECT_WIN 변수 이미 정의됨)**:
 
+plan 본문은 일반적으로 50KB 미만이라 인자 전달 OK. 그래도 안전하게 `--prompt-file` 권장.
+
+패턴 A (소형, 인자):
 ```bash
 PLAN_CONTENT=$(cat <PROJECT_ROOT>/.harness/plans/plan-<id>.md)
 wsl -e bash -lc '
   PROJECT_WSL=$(wslpath -u "$1")
   bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode plan-critique "$2"
 ' _ "$PROJECT_WIN" "$PLAN_CONTENT"
+```
+
+패턴 B (file, 권장 — plan 이 커지거나 외부 자료 inline 시):
+```bash
+# plan-<id>.md 를 그대로 prompt 로 사용
+PROMPT_FILE_WIN="$PROJECT_WIN/.harness/plans/plan-<id>.md"
+wsl -e bash -lc '
+  PROJECT_WSL=$(wslpath -u "$1")
+  PROMPT_WSL=$(wslpath -u "$2")
+  bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode plan-critique --prompt-file "$PROMPT_WSL"
+' _ "$PROJECT_WIN" "$PROMPT_FILE_WIN"
 ```
 
 **⚠️ background 실행 금지** — 결과를 동기적으로 받아야 검증 가능. `run_in_background: true` 사용 금지.
@@ -418,6 +462,36 @@ Read tool: <PROJECT_ROOT>/.harness/plans/plan-<id>.md
 5. plan.md Phase 3 체크리스트 체크
 6. → Phase 4
 
+### 🚨 주석 작성 지침 (Comment Policy)
+
+**소스 코드의 주석은 "그 코드가 무엇을/왜 하는가"를 설명해야 한다. harness 워크플로우 메타정보를 주석으로 남기지 말 것.**
+
+❌ **금지 (harness 작업 흔적 주석)**:
+```js
+// Phase 3에서 추가된 함수
+// harness iter-2 review 후 수정
+// Codex 리뷰 반영: edge case 보강
+// REQUEST_ID 20260513-220000-foo 작업 중 추가
+// plan.md Step 3.2 구현
+// TODO(harness): Phase 4 review 시 확인
+```
+
+✅ **허용 (기능/의도 설명 주석)**:
+```js
+// 사용자 토큰 만료 시 refresh endpoint 로 자동 재발급.
+// 401 응답에서만 트리거, 그 외 에러는 상위로 전파.
+function refreshToken(...) { ... }
+
+// 음수 입력은 정책상 0 으로 클램프 (UI 슬라이더 하한과 일치).
+const value = Math.max(0, input);
+```
+
+**원칙**:
+- 주석 = 코드 독자(미래의 본인 포함)를 위한 컨텍스트. harness/Codex/iteration/critique/review 등의 단어가 등장하면 잘못 쓴 것.
+- harness 활동 기록은 `.harness/progress/`, `.harness/reviews/`, `.harness/improvements/` 산출물에 남기고 소스 파일에는 남기지 않는다.
+- 기존 코드의 무관한 주석은 건드리지 않는다 (Rule 3 surgical changes).
+- 자체 점검: 새로 추가한 주석에 "harness/Phase/iter/Codex/critique/review/REQUEST_ID" 단어가 있으면 → 기능 설명으로 재작성 또는 삭제.
+
 ---
 
 ## Phase 4: Review Loop — 🚨 MANDATORY EXECUTION 🚨
@@ -454,11 +528,21 @@ while ITER <= 3:
            ```
         e. 검증: prompt 에 각 변경 파일이 실제 포함됐는지 grep 자체 점검.
            누락 발견 → 추가 후 재시도. 절대 "대표 파일만 보낸다" 금지.
-    Step 4.2: Bash 실제 호출 (background 금지, 결과 동기 수신):
+    Step 4.2: Bash 실제 호출 (background 금지, 결과 동기 수신)
+        🚨 code review prompt 는 거의 항상 ARG_MAX 초과 → **반드시 --prompt-file 사용**.
+
+        a. Write 도구로 prompt 를 .harness/reviews/_iter-<N>-input.txt 에 저장.
+        b. WSL 경로로 변환하여 --prompt-file 로 전달:
+
+        PROMPT_FILE_WIN="$PROJECT_WIN/.harness/reviews/_iter-<N>-input.txt"
         wsl -e bash -lc '
           PROJECT_WSL=$(wslpath -u "$1")
-          bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode code "$2"
-        ' _ "$PROJECT_WIN" "$REVIEW_PROMPT"
+          PROMPT_WSL=$(wslpath -u "$2")
+          bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode code --prompt-file "$PROMPT_WSL"
+        ' _ "$PROJECT_WIN" "$PROMPT_FILE_WIN"
+
+        ❌ 인자 직접 전달 (--mode code "$REVIEW_PROMPT") 은 "Argument list too long" 으로
+           대부분 실패. 사용 금지.
     Step 4.3: Exit code 처리:
         - 0 → review-<id>-iter-<ITER>.md에 저장 (Write 도구), review_method: codex
         - 2 → **중단**. wrapper가 로그인 창 띄움. 사용자 로그인 완료까지 대기.
@@ -511,11 +595,24 @@ while ITER <= 3:
 1. **sequence 결정**: progress.md `research_count + 1`
 2. **slug**: 주제 핵심 단어 (max 30자, lowercase, hyphen)
 3. **Bash 실제 호출** (background 금지, 동기 수신):
+
+   소형 prompt (인자):
    ```bash
    wsl -e bash -lc '
      PROJECT_WSL=$(wslpath -u "$1")
      bash "$PROJECT_WSL/.harness/wrappers/gemini-research.sh" --mode research "$2"
    ' _ "$PROJECT_WIN" "$TOPIC_PROMPT"
+   ```
+
+   대용량 prompt (파일, 권장 — code/log inline 시):
+   ```bash
+   # Write 도구로 .harness/research/_topic-<seq>-input.txt 저장 후
+   PROMPT_FILE_WIN="$PROJECT_WIN/.harness/research/_topic-<seq>-input.txt"
+   wsl -e bash -lc '
+     PROJECT_WSL=$(wslpath -u "$1")
+     PROMPT_WSL=$(wslpath -u "$2")
+     bash "$PROJECT_WSL/.harness/wrappers/gemini-research.sh" --mode research --prompt-file "$PROMPT_WSL"
+   ' _ "$PROJECT_WIN" "$PROMPT_FILE_WIN"
    ```
 4. **Exit code 처리**:
    - 0 → Write 도구로 `<PROJECT_ROOT>/.harness/research/research-<id>-<seq>-<slug>.md` 저장 (templates/research.md 형식)

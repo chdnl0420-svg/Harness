@@ -427,12 +427,38 @@ Read tool: <PROJECT_ROOT>/.harness/plans/plan-<id>.md
 ```
 ITER = 1
 while ITER <= 3:
-    Step 4.1: 변경 파일들의 diff 또는 내용 수집
+    Step 4.1: 🚨 변경 파일 전수 수집 (요약 금지)
+        a. Phase 3 동안 Claude가 Write/Edit/MultiEdit 한 모든 파일 경로를 진행 기록(progress-<id>.md)
+           또는 도구 호출 이력에서 전수 수집. 누락 금지.
+        b. 신규 생성된 untracked 파일도 포함 (`git status --porcelain` 으로 교차 확인).
+        c. 각 파일의 **전체 내용**을 Read로 읽고 prompt 에 inline 포함.
+           - diff만 보내지 말 것 (Codex 가 컨텍스트 부족으로 잘못된 지적).
+           - 단, 단일 파일 >2000 lines 면 변경 영역 ±50 lines window + 파일 헤더만.
+           - 바이너리/lockfile/생성물(dist, .min.js)은 경로만 명시.
+        d. prompt 구조:
+           ```
+           ## 변경 파일 목록 (N개)
+           - path/to/a.ts (modified, 120 lines)
+           - path/to/b.ts (new, 45 lines)
+
+           ## 파일별 전체 내용
+           ### path/to/a.ts
+           ```ts
+           <full content>
+           ```
+           ### path/to/b.ts
+           ...
+
+           ## diff (참고용, 보조)
+           <git diff>
+           ```
+        e. 검증: prompt 에 각 변경 파일이 실제 포함됐는지 grep 자체 점검.
+           누락 발견 → 추가 후 재시도. 절대 "대표 파일만 보낸다" 금지.
     Step 4.2: Bash 실제 호출 (background 금지, 결과 동기 수신):
         wsl -e bash -lc '
           PROJECT_WSL=$(wslpath -u "$1")
           bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode code "$2"
-        ' _ "$PROJECT_WIN" "$DIFF_CONTENT"
+        ' _ "$PROJECT_WIN" "$REVIEW_PROMPT"
     Step 4.3: Exit code 처리:
         - 0 → review-<id>-iter-<ITER>.md에 저장 (Write 도구), review_method: codex
         - 2 → **중단**. wrapper가 로그인 창 띄움. 사용자 로그인 완료까지 대기.

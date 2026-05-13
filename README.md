@@ -330,6 +330,7 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" \
 | `API key expired. Please renew the API key` | Google이 노출된 키 자동 회수 | 새 키 발급 → `~/.bashrc` 갱신. **절대 채팅·공개 위치에 키 노출 금지** |
 | `This command must run inside a Git repository` (`/codex:review`) | 별개 issue — Codex CLI가 git 강제 요구 | `git init` 후 재시도, 또는 `codex-reviewer` agent 직접 호출 |
 | `warning: Codex could not find bubblewrap on PATH ... Codex will use the bundled bubblewrap` | WSL에 bubblewrap 미설치, Codex가 번들 fallback 사용 중 | **무시 가능 (동작·보안 영향 없음)**. 깔끔히 없애려면: `sudo apt install -y bubblewrap` (또는 `bash ~/.claude/skills/harness/core/run-interactive.sh "📦 bubblewrap" "sudo apt install -y bubblewrap"`) |
+| `codex_core::tools::router: error=write_stdin failed: stdin is closed for this session` | **Codex CLI 자체 버그** — tool router가 닫힌 subprocess stdin에 명령 쓰려고 함. 큰 repo + 다중 rg/find 호출 환경에서 가끔 발생. exit 4로 분류됨 | wrapper가 자동 감지 후 Claude code-reviewer agent로 fallback. 권장: `npm i -g @openai/codex@latest` 로 업데이트 |
 
 상세: [skills/harness/docs/setup.md](skills/harness/docs/setup.md)
 

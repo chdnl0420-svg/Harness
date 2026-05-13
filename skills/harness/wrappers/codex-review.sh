@@ -13,6 +13,7 @@
 #   1 = 일반 오류 (CLI 실행 실패)
 #   2 = 인증 실패 (로그인 안 됨 / 토큰 만료) → 작업 중단 + 로그인 요청
 #   3 = quota/rate limit 소진 (로그인은 됐으나 작업 불가) → Claude fallback
+#   4 = Codex CLI 내부 subprocess 에러 (codex_core::tools::router stdin issue) → Claude fallback
 
 # NVM 로딩
 export NVM_DIR="$HOME/.nvm"
@@ -282,10 +283,30 @@ END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 OUTPUT_LEN=${#OUTPUT}
 
-# 🚨 핵심 정책: 패턴 매칭은 EXIT_CODE != 0 일 때만 수행
+# ─── 핵심 정책: 패턴 매칭은 EXIT_CODE != 0 일 때만 수행 ───
 # (Codex가 0으로 종료했다면 출력 내용이 어떻든 그건 정상 리뷰 응답이다.
 #  코드 안의 "rate limit" 같은 문자열이나 Codex의 분석 문장이 quota로 오탐되는
 #  사고를 차단. 예: 채팅앱 코드를 리뷰 중 "rate limit" 표현이 나옴 → 오탐)
+#
+# 🚨 예외: Codex CLI 내부 subprocess 에러 ─ 이 패턴은 사용자 응답에 절대 안 나옴
+# (codex_core::tools::router 는 Codex 내부 Rust 모듈 로그)
+# exit code와 무관하게 무조건 우선 감지.
+if echo "$OUTPUT" | grep -qiE "codex_core::tools::router:[[:space:]]*error=|write_stdin failed: stdin is closed for this session"; then
+    {
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  Codex CLI 내부 subprocess 에러 — exit 4, ${ELAPSED}s"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "원인: codex_core::tools::router 가 닫힌 stdin 에 명령을 쓰려고 함."
+        echo "      (Codex CLI 자체 버그, 큰 repo + rg/find 등 다중 subprocess 환경에서 가끔 발생)"
+        echo ""
+        echo "대응:"
+        echo "  - 호출자가 Claude code-reviewer agent 로 fallback 권장"
+        echo "  - Codex CLI 업데이트 확인: npm i -g @openai/codex@latest"
+    } >&2
+    echo "CODEX_TOOL_ROUTER_ERROR: subprocess stdin closed — fallback to Claude" >&2
+    exit 4
+fi
+
 if [ "$EXIT_CODE" -ne 0 ]; then
     TAIL_BLOCK=$(printf '%s\n' "$OUTPUT" | tail -n 30)
 

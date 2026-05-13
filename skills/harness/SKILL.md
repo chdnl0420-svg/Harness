@@ -267,6 +267,7 @@ wsl -e bash -lc '
 | **0** | 정상 critique | plan.md "External Critique" 섹션에 verbatim 저장 + `critique_method: codex` |
 | **2** | **인증 실패 (로그인 필요)** | **워크플로우 즉시 중단** — wrapper가 로그인 창 띄움. 사용자 로그인 완료 대기 |
 | **3** | **Quota 소진 (로그인 됐으나 사용 불가)** | **Claude 자체 critique로 fallback** — `critique_method: claude-self` |
+| **4** | **Codex CLI 내부 subprocess 에러** (codex_core::tools::router stdin closed) | **Claude 자체 critique로 fallback** — `critique_method: claude-self-codex-internal-error`. 사용자에게 원인 보고 + `npm i -g @openai/codex@latest` 업데이트 권장 안내 |
 | 기타 | 일반 오류 | 사용자에게 에러 보고 + 결정 요청 |
 
 **exit 2 처리 (절대 fallback 금지, 무조건 중단):**
@@ -285,6 +286,17 @@ wsl -e bash -lc '
   - Missing Pieces, Hidden Risks, Better Approaches, Scope Issues, Critical Issues 항목 채움
   - plan.md "External Critique" 섹션에 저장. `critique_method: claude-self`
 - **주의**: claude-self는 self-review와 별개 단계로 명확히 표기
+
+**exit 4 처리 (Codex CLI 내부 에러 → Claude fallback):**
+- 사용자에게 보고:
+  ```
+  ⚠️ Codex CLI 내부 subprocess 에러 감지 (codex_core::tools::router stdin 닫힘)
+     — Codex 자체 버그, 큰 repo + 다중 rg/find subprocess 환경에서 가끔 발생
+     — 권장: npm i -g @openai/codex@latest 로 업데이트 확인
+     — 이번 task 는 Claude self critique 로 fallback
+  ```
+- exit 3과 동일하게 Claude self critique 진행, `critique_method: claude-self-codex-internal-error`
+- result.md 작성 시 `codex_internal_error: true` 메타 기록 (audit trail)
 
 #### Step 4: Gemini Fallback (선택, exit 3에서만)
 
@@ -426,6 +438,9 @@ while ITER <= 3:
         - 2 → **중단**. wrapper가 로그인 창 띄움. 사용자 로그인 완료까지 대기.
               "완료" 입력 후 Step 4.2 재시도. fallback 금지.
         - 3 → Claude code-reviewer agent로 fallback (Task 도구), review_method: claude
+        - 4 → Codex CLI 내부 subprocess 에러. 사용자에게 원인 보고 + Codex CLI
+              업데이트 권장. Claude code-reviewer agent로 fallback,
+              review_method: claude-codex-internal-error
     Step 4.4: 🚨 검증 게이트: Read review-...iter-<ITER>.md 확인. 비어있으면 STOP.
     Step 4.5: LGTM 파싱:
         - YES → break (완료)
@@ -555,6 +570,7 @@ REQUEST_ID: `YYYYMMDD-HHMMSS-<slug>`
 | Codex/Gemini 로그인 안 됨 | 2 | **워크플로우 중단** + auth-helper 자동 창. 사용자 로그인 후 "완료" → 재시도. fallback 금지. |
 | Codex quota 소진 (Phase 1.2) | 3 | Claude self critique로 진행, `critique_method: claude-self` |
 | Codex quota 소진 (Phase 4) | 3 | Claude `code-reviewer` agent로 fallback, `review_method: claude` |
+| Codex CLI 내부 에러 (subprocess stdin closed) | 4 | Claude self/`code-reviewer` fallback + 사용자에게 원인 보고. Codex 업데이트 권장 (`npm i -g @openai/codex@latest`). |
 | Gemini quota 소진 (Research) | 3 | Claude self-knowledge로 진행, "Claude knowledge" 명시 |
 | 3 revision 도달 | — | 사용자 결정 |
 | 3 iter 도달 | — | 강제 완료 + 잔여 보고 |

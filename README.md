@@ -52,20 +52,15 @@ $tmp = "$env:TEMP\harness-install-$([System.Guid]::NewGuid().ToString('N').Subst
 $zip = "$tmp.zip"
 $claude = "$env:USERPROFILE\.claude"
 
-Write-Host "📥 Downloading..." -ForegroundColor Cyan
 Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-
-Write-Host "📦 Extracting..." -ForegroundColor Cyan
 Expand-Archive -Path $zip -DestinationPath $tmp -Force
 $src = Get-ChildItem $tmp -Directory | Select-Object -First 1
 
-Write-Host "📂 Installing to $claude ..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path "$claude\skills","$claude\commands" | Out-Null
 Copy-Item -Path "$($src.FullName)\skills\harness" -Destination "$claude\skills\" -Recurse -Force
 Copy-Item -Path "$($src.FullName)\commands\harness-setup.md" -Destination "$claude\commands\" -Force
 Copy-Item -Path "$($src.FullName)\commands\harness-review.md" -Destination "$claude\commands\" -Force -ErrorAction SilentlyContinue
 
-Write-Host "🔖 Recording version..." -ForegroundColor Cyan
 try {
   $commit = (Invoke-RestMethod -Uri "https://api.github.com/repos/chdnl0420-svg/Harness/commits/main" -UseBasicParsing).sha
   $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -75,23 +70,15 @@ installed: $now
 source: https://github.com/chdnl0420-svg/Harness
 branch: main
 "@ | Set-Content -Path "$claude\skills\harness\.version" -Encoding utf8
-  Write-Host "    SHA: $($commit.Substring(0,7))" -ForegroundColor DarkGray
-} catch {
-  Write-Host "    (skip — GitHub API 호출 실패, /harness-setup 시 자동 표시)" -ForegroundColor DarkGray
-}
+} catch {}
 
-Write-Host "🧹 Cleanup..." -ForegroundColor Cyan
 Remove-Item -Path $zip,$tmp -Recurse -Force -ErrorAction SilentlyContinue
-
-Write-Host ""
-Write-Host "✅ 파일 설치 완료" -ForegroundColor Green
-Write-Host ""
-Write-Host "다음 단계:" -ForegroundColor Yellow
-Write-Host "  1. WSL + Ubuntu 미설치 시 (관리자 PowerShell): wsl --install -d Ubuntu  → 재부팅"
-Write-Host "  2. Claude Code 재시작"
-Write-Host "  3. Claude Code에서: /harness-setup"
-Write-Host "     → 9개 prereq 검진. 누락 항목은 화면 안내대로 처리."
 ```
+
+**설치 후 다음 단계**:
+1. WSL + Ubuntu 미설치 시 (관리자 PowerShell): `wsl --install -d Ubuntu` → 재부팅
+2. Claude Code 재시작
+3. Claude Code 에서 `/harness-setup` → 9개 prereq 검진. 누락 항목은 화면 안내대로 처리.
 
 **필요 조건**: PowerShell 5.0+ (Windows 10/11 기본 포함) + 인터넷. git/WSL 없어도 됨.
 

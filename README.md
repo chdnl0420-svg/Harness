@@ -180,6 +180,34 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동 생성) |
 | `/harness-review` | Codex로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
 
+### Drift 검사 (자동)
+
+`/harness <task>` 호출 시 Step 0에서 **마스터 (`~/.claude/skills/harness/{core,wrappers}/*.sh`) vs 프로젝트 (`<PROJECT>/.harness/{core,wrappers}/*.sh`)** sha256 해시 비교. 차이 있으면 사용자에게 4지선다:
+
+```
+⚠️ N건의 .sh 파일이 마스터와 다릅니다:
+   - wrappers/codex-review.sh (modified)
+   - core/run-interactive.sh (modified)
+
+[A] 마스터로 최신화 (백업 후 덮어쓰기)        ← 권장
+[B] 이번 task만 skip (다음 호출 시 다시 물음)
+[C] 영구 무시 (~/.harness/.skip-drift-check 마커)
+[D] 작업 취소
+```
+
+A 선택 시: `<PROJECT>/.harness/backups/<file>.bak-<ts>` 자동 백업 + 마스터 파일로 교체.
+
+**우회/제어**:
+- `HARNESS_SKIP_DRIFT_CHECK=1` env — 자동화/CI용
+- `~/.harness/.skip-drift-check` 파일 — 영구 비활성 (옵션 C가 만들기도 함)
+- `<PROJECT>/.harness/.skip-drift-this-task` — one-shot skip (옵션 B가 만들고 사용 후 자동 삭제)
+
+수동 검사:
+```bash
+bash ~/.claude/skills/harness/core/check-drift.sh <PROJECT_DIR>
+bash ~/.claude/skills/harness/core/sync-from-master.sh <PROJECT_DIR>  # 동기화
+```
+
 ### 업데이트 흐름 (`/harness-setup --update`)
 
 설치된 Harness가 GitHub의 main 브랜치보다 오래된 경우:

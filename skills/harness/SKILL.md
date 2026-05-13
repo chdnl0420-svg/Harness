@@ -139,10 +139,62 @@ Templates: `~/.claude/skills/harness/templates/`
      bash "$SKILL_WSL/core/bootstrap-runtime.sh" "$PROJECT_WSL"
    ' _ "$SKILL_WIN" "$PROJECT_WIN"
    ```
-5. **.gitignore 안내** (첫 생성 시, 강제 X):
+5. **🔍 Drift 검사 (마스터 ↔ 프로젝트 .sh 동기화)** — 매 호출마다 자동:
+
+   ### 5.1. Skip 조건 (있으면 검사 건너뜀, exit code 처리 없이 다음 단계로)
+   - `HARNESS_SKIP_DRIFT_CHECK=1` 환경변수
+   - `~/.harness/.skip-drift-check` 파일 존재 (사용자가 영구 비활성)
+   - `<PROJECT>/.harness/.skip-drift-this-task` 파일 존재 — **사용 후 즉시 삭제** (one-shot)
+
+   ### 5.2. 검사 실행
+   ```bash
+   wsl -e bash -lc '
+     SKILL_WSL=$(wslpath -u "$1")
+     PROJECT_WSL=$(wslpath -u "$2")
+     bash "$SKILL_WSL/core/check-drift.sh" "$PROJECT_WSL" --json
+   ' _ "$SKILL_WIN" "$PROJECT_WIN"
+   ```
+
+   ### 5.3. Exit code 분기
+   - `0` → drift 없음, 조용히 다음 단계
+   - `10` → drift 있음, JSON 응답 파싱 (예: `{"drift_count":2,"files":[{"file":"wrappers/codex-review.sh","status":"modified"},...]}`)
+   - 기타 → 에러 보고 + skip (워크플로우 계속)
+
+   ### 5.4. drift 있을 때 (`AskUserQuestion` 도구 호출)
+
+   Claude는 사용자에게 4지선다 prompt:
+   ```
+   질문: "{drift_count}건의 .sh 파일이 마스터와 다릅니다:
+           - {file1} ({status1})
+           - {file2} ({status2})
+           ...
+           어떻게 처리할까요?"
+
+   옵션:
+   [A] 마스터로 최신화 (백업 후 덮어쓰기)        ← 권장
+   [B] 이번 task만 skip (다음 호출 시 다시 물음)
+   [C] 영구 무시 (~/.harness/.skip-drift-check)
+   [D] 작업 취소
+   ```
+
+   응답 처리:
+   - **A**: `sync-from-master.sh` 호출 →
+     ```bash
+     wsl -e bash -lc '
+       SKILL_WSL=$(wslpath -u "$1")
+       PROJECT_WSL=$(wslpath -u "$2")
+       bash "$SKILL_WSL/core/sync-from-master.sh" "$PROJECT_WSL"
+     ' _ "$SKILL_WIN" "$PROJECT_WIN"
+     ```
+     성공 시 다음 단계 진행. 실패 시 사용자에게 보고 후 결정 받음.
+   - **B**: `<PROJECT>/.harness/.skip-drift-this-task` 마커 생성 → 다음 단계 진행
+   - **C**: `~/.harness/.skip-drift-check` 마커 생성 → 다음 단계 진행
+   - **D**: `status: rejected`, END
+
+6. **.gitignore 안내** (첫 생성 시, 강제 X):
    - repo 공유: `.harness/wrappers/`, `.harness/core/` ignore 권장 (각자 bootstrap)
    - full archive 공유: 포함해도 OK (bootstrap이 CRLF/+x 보정)
-   - 항상: `.harness/plans/`, `.harness/progress/`, ... artifacts는 ignore 권장
+   - 항상: `.harness/plans/`, `.harness/progress/`, `.harness/backups/`, `.harness/.skip-drift-this-task` 등 ignore 권장
 
 ### `/harness sync` (선택 명령)
 

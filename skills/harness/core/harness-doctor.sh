@@ -209,7 +209,7 @@ check_9_gemini_key() {
         record_pass 9 "Gemini API key" "(${src})"
     else
         record_fail 9 "Gemini API key" \
-            "API key 미설정.\n        1) https://aistudio.google.com/apikey 에서 발급\n        2) WSL 터미널에서:\n           nano ~/.bashrc\n           맨 아래 추가: export GEMINI_API_KEY=\"<발급받은-키>\"\n        3) 저장 후 새 shell 또는 source ~/.bashrc\n        (인터랙티브 mode에선 ~/.gemini/gemini-credentials.json 으로도 가능하지만\n         harness wrappers는 headless 모드라 env 필수)"
+            "API key 미설정.\n        1) https://aistudio.google.com/apikey 에서 키 발급\n        2) 키 등록 (별창 자동 띄움, paste만 하면 됨):\n           bash ~/.claude/skills/harness/core/run-interactive.sh \"🔑 Gemini key\" \"bash ~/.claude/skills/harness/core/setup-gemini-key.sh\"\n        3) 검증: /harness-setup\n        (수동 편집을 원하면 nano ~/.bashrc 후 export GEMINI_API_KEY=\"...\" 추가)"
     fi
 }
 
@@ -258,9 +258,32 @@ AUTO_COUNT=${#AUTO_FIXABLE[@]}
 
 if [ "$MODE" = "fix" ] && [ "$AUTO_COUNT" -gt 0 ]; then
     do_fix
+fi
+
+# Interactive 보조 fix: Gemini API key 누락 시 별창 띄워 안전한 paste
+if [ "$MODE" = "fix" ]; then
+    for entry in "${FAILED[@]}"; do
+        label=$(echo "$entry" | awk -F'\\|\\|\\|' '{print $1}')
+        if [ "$label" = "Gemini API key" ]; then
+            SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+            HELPER="$SCRIPT_DIR/run-interactive.sh"
+            KEY_SCRIPT="$SCRIPT_DIR/setup-gemini-key.sh"
+            if [ -x "$HELPER" ] && [ -x "$KEY_SCRIPT" ]; then
+                log ""
+                log "🔑 Gemini API key 등록 별창 띄우는 중..."
+                bash "$HELPER" "🔑 Gemini API key 등록" "bash $KEY_SCRIPT" || true
+                log "    별창에서 키 paste 후 Enter로 닫기."
+            fi
+            break
+        fi
+    done
+fi
+
+# fix 모드에서 뭐든 시도했으면 재검진 필요
+if [ "$MODE" = "fix" ] && [ "${#FAILED[@]}" -gt 0 ]; then
     log ""
-    log "🔁 재검진 권장: bash $(basename "$0")"
-    exit 1  # fix 후엔 재검진 필요
+    log "🔁 재검진 권장: /harness-setup"
+    exit 1
 fi
 
 if [ "$FAIL_COUNT" -eq 0 ]; then

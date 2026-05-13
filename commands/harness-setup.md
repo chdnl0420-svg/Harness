@@ -23,7 +23,9 @@ description: Harness skill 의존성 검진 + npm 패키지 자동 설치 (Windo
 
 3. **npm 패키지 자동 설치** — Codex CLI / Gemini CLI 누락 시 `npm install -g` 자동 실행.
 
-4. **OS 도구·인증·API key** — 자동 처리 불가. 화면 안내 따라 사용자가 직접 처리.
+4. **Gemini API key 자동 별창** — 키 누락 감지 시 `wt.exe` 별창 띄움. 사용자는 키만 paste 하면 `~/.bashrc` 에 안전하게 저장됨 (형식 검증 + 기존 라인 교체 + 백업 생성).
+
+5. **OS 도구·Codex 로그인** — 자동 처리 불가. 화면 안내 따라 사용자가 직접 처리.
 
 ## 실행 명령
 
@@ -54,11 +56,11 @@ wsl -e bash -lc '
 |------|------|------|
 | Codex CLI | ✅ | npm 패키지, user 영역, sudo 불필요 |
 | Gemini CLI | ✅ | 동일 |
+| Gemini API key | ✅ 반자동 | 별창 띄워 paste만 받음 (`setup-gemini-key.sh` + 형식 검증 + bashrc 자동 갱신) |
 | Node ≥ 20 | ⚠️ 가이드 | `nvm install 20` 권한 거부 빈도 → 사용자 직접 |
 | NVM | ❌ 가이드 | 시스템 설치 |
 | 기본 도구 (apt) | ❌ 가이드 | sudo 필요 |
-| Codex 로그인 | ❌ 가이드 | interactive 입력 필요 |
-| Gemini API key | ❌ 가이드 | 보안 (사용자가 발급 + bashrc 편집) |
+| Codex 로그인 | ❌ 가이드 | OAuth (브라우저 인증) |
 
 ## 트러블슈팅 (이번 세션에서 발견된 트랩들)
 

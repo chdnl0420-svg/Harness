@@ -270,31 +270,35 @@ END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 OUTPUT_LEN=${#OUTPUT}
 
-# 패턴 매칭은 **마지막 30줄**만 — retry "Attempt N failed" 오탐 방지
-TAIL_BLOCK=$(printf '%s\n' "$OUTPUT" | tail -n 30)
+# 🚨 핵심 정책: 패턴 매칭은 EXIT_CODE != 0 일 때만 수행
+# (Gemini가 0으로 종료했다면 출력이 어떻든 정상 응답. 사용자가 "rate limit 처리 방법"
+#  같은 주제를 물어봐서 답변에 quota 관련 단어가 들어가는 경우 오탐을 방지.)
+if [ "$EXIT_CODE" -ne 0 ]; then
+    TAIL_BLOCK=$(printf '%s\n' "$OUTPUT" | tail -n 30)
 
-# 1) 인증 실패 패턴 (로그인 필요) → 로그인 창 + exit 2
-if echo "$TAIL_BLOCK" | grep -qiE "GEMINI_API_KEY|API_KEY_INVALID|API.?key.?expired|authentication.*required|401|please.*log.*in|need.*auth|not authenticated|login required|/auth"; then
-    {
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "🔓 Gemini 인증 실패 — exit 2, ${ELAPSED}s"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    } >&2
-    bash "$(dirname "$0")/auth-helper.sh" gemini >&2
-    echo "GEMINI_AUTH_REQUIRED: login window opened — workflow must halt" >&2
-    echo "💡 의존성 검진: /harness-setup" >&2
-    exit 2
-fi
+    # 1) 인증 실패 패턴 (로그인 필요) → 로그인 창 + exit 2
+    if echo "$TAIL_BLOCK" | grep -qiE "GEMINI_API_KEY|API_KEY_INVALID|API.?key.?expired|authentication.*required|401|please.*log.*in|need.*auth|not authenticated|login required|/auth"; then
+        {
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🔓 Gemini 인증 실패 — exit 2, ${ELAPSED}s"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        } >&2
+        bash "$(dirname "$0")/auth-helper.sh" gemini >&2
+        echo "GEMINI_AUTH_REQUIRED: login window opened — workflow must halt" >&2
+        echo "💡 의존성 검진: /harness-setup" >&2
+        exit 2
+    fi
 
-# 2) Quota/rate limit 패턴 → Claude fallback 신호
-if echo "$TAIL_BLOCK" | grep -qiE "rate.?limit|quota.?exceeded|quota.?will.?reset|exhausted.*capacity|exhausted.*quota|resource_exhausted|usage.?limit|too many requests|429|daily.?limit|monthly.?limit"; then
-    {
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "⚠️  Gemini quota 소진 — exit 3, ${ELAPSED}s"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    } >&2
-    echo "GEMINI_QUOTA_EXHAUSTED: logged in but quota out — fallback to Claude" >&2
-    exit 3
+    # 2) Quota/rate limit 패턴 → Claude fallback 신호
+    if echo "$TAIL_BLOCK" | grep -qiE "rate.?limit|quota.?exceeded|quota.?will.?reset|exhausted.*capacity|exhausted.*quota|resource_exhausted|usage.?limit|too many requests|429|daily.?limit|monthly.?limit"; then
+        {
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  Gemini quota 소진 — exit 3, ${ELAPSED}s"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        } >&2
+        echo "GEMINI_QUOTA_EXHAUSTED: logged in but quota out — fallback to Claude" >&2
+        exit 3
+    fi
 fi
 
 # 정상 종료 마커

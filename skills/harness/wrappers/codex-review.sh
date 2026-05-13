@@ -248,32 +248,36 @@ END_TS=$(date +%s)
 ELAPSED=$((END_TS - START_TS))
 OUTPUT_LEN=${#OUTPUT}
 
-# 패턴 매칭은 **최종 결과의 마지막 30줄**만 — retry 메시지 오탐 방지
-TAIL_BLOCK=$(printf '%s\n' "$OUTPUT" | tail -n 30)
+# 🚨 핵심 정책: 패턴 매칭은 EXIT_CODE != 0 일 때만 수행
+# (Codex가 0으로 종료했다면 출력 내용이 어떻든 그건 정상 리뷰 응답이다.
+#  코드 안의 "rate limit" 같은 문자열이나 Codex의 분석 문장이 quota로 오탐되는
+#  사고를 차단. 예: 채팅앱 코드를 리뷰 중 "rate limit" 표현이 나옴 → 오탐)
+if [ "$EXIT_CODE" -ne 0 ]; then
+    TAIL_BLOCK=$(printf '%s\n' "$OUTPUT" | tail -n 30)
 
-# 1) 인증 실패 패턴 (로그인 필요) → 로그인 창 + exit 2
-if echo "$TAIL_BLOCK" | grep -qiE "token_invalidated|authentication.*invalidated|401 Unauthorized|refresh_token_reused|access token.*could not be refreshed|sign in again|please log out|not authenticated|login required|no credentials"; then
-    {
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "🔓 Codex 인증 실패 — exit 2, ${ELAPSED}s"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    } >&2
-    bash "$(dirname "$0")/auth-helper.sh" codex >&2
-    echo "CODEX_AUTH_REQUIRED: login window opened — workflow must halt" >&2
-    echo "💡 의존성 검진: /harness-setup" >&2
-    exit 2
-fi
+    # 1) 인증 실패 패턴 (로그인 필요) → 로그인 창 + exit 2
+    if echo "$TAIL_BLOCK" | grep -qiE "token_invalidated|authentication.*invalidated|401 Unauthorized|refresh_token_reused|access token.*could not be refreshed|sign in again|please log out|not authenticated|login required|no credentials"; then
+        {
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🔓 Codex 인증 실패 — exit 2, ${ELAPSED}s"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        } >&2
+        bash "$(dirname "$0")/auth-helper.sh" codex >&2
+        echo "CODEX_AUTH_REQUIRED: login window opened — workflow must halt" >&2
+        echo "💡 의존성 검진: /harness-setup" >&2
+        exit 2
+    fi
 
-# 2) Quota/rate limit 패턴 (로그인 됐으나 사용 한도 초과) → Claude fallback 신호
-# `Attempt N failed` 같은 retry 메시지는 마지막 블록에는 보통 없음 → 오탐 감소
-if echo "$TAIL_BLOCK" | grep -qiE "rate.?limit|quota.?exceeded|insufficient_quota|usage.?limit|too many requests|429|model.?usage.?limit|monthly.?limit|daily.?limit|plan.?limit|out of credits"; then
-    {
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "⚠️  Codex quota 소진 — exit 3, ${ELAPSED}s"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    } >&2
-    echo "CODEX_QUOTA_EXHAUSTED: logged in but quota out — fallback to Claude" >&2
-    exit 3
+    # 2) Quota/rate limit 패턴 (로그인 됐으나 사용 한도 초과) → Claude fallback 신호
+    if echo "$TAIL_BLOCK" | grep -qiE "rate.?limit|quota.?exceeded|insufficient_quota|usage.?limit|too many requests|429|model.?usage.?limit|monthly.?limit|daily.?limit|plan.?limit|out of credits"; then
+        {
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  Codex quota 소진 — exit 3, ${ELAPSED}s"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        } >&2
+        echo "CODEX_QUOTA_EXHAUSTED: logged in but quota out — fallback to Claude" >&2
+        exit 3
+    fi
 fi
 
 # 정상 종료 마커

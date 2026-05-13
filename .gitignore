@@ -1,0 +1,22 @@
+# Working artifacts (created by /harness in user projects)
+.harness/plans/
+.harness/progress/
+.harness/research/
+.harness/reviews/
+.harness/improvements/
+.harness/results/
+.harness/.current-request-id
+.harness/.doctor-passed
+
+# Wrapper backups
+*.bak-*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Logs
+*.log

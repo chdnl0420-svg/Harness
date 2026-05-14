@@ -43,7 +43,7 @@ for f in $CORES; do
 done
 
 # 2. 프로젝트 디렉터리 구조 보장
-mkdir -p "$PROJECT_WSL/.harness"/{plans,progress,research,reviews,improvements,results,wrappers,core}
+mkdir -p "$PROJECT_WSL/.harness"/{plans,progress,research,reviews,improvements,results,wrappers,core,agents/learning}
 
 # 3. 파일 복사 (없거나 --force면)
 copy_if_needed() {
@@ -96,6 +96,18 @@ done
 
 if [ "$STALE_COUNT" -gt 0 ] && [ "$FORCE" != "--force" ]; then
     echo "ℹ️ $STALE_COUNT file(s) differ from master — run '/harness sync' to update" >&2
+fi
+
+# 6. Agent learning 파일 시드 (빈 5섹션 템플릿, 프로젝트 측에만)
+LEARNING_TEMPLATE="$SKILL_WSL/templates/learning-file.md"
+if [ -f "$LEARNING_TEMPLATE" ]; then
+    for agent in harness-planner harness-architect harness-code-reviewer harness-security-reviewer harness-tdd-guide harness-build-resolver; do
+        dst="$PROJECT_WSL/.harness/agents/learning/$agent.md"
+        if [ ! -f "$dst" ]; then
+            sed "s|<AGENT_NAME>|$agent|g" "$LEARNING_TEMPLATE" > "$dst"
+            echo "🧠 learning seed: $agent.md" >&2
+        fi
+    done
 fi
 
 exit 0

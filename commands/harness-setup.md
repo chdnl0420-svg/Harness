@@ -18,7 +18,7 @@ argument-hint: '[--update] [--no-version-check]'
 
 ## 동작 절차
 
-1. **9개 항목 검사:**
+1. **10개 항목 검사:**
    1. WSL 환경
    2. Windows Terminal (`wt.exe`) — 선택
    3. 기본 도구 (`bash`/`git`/`curl`/`stdbuf` 등)
@@ -28,6 +28,7 @@ argument-hint: '[--update] [--no-version-check]'
    7. Codex 로그인 (`~/.codex/`)
    8. Gemini CLI (`@google/gemini-cli`)
    9. Gemini API key (`~/.bashrc` `GEMINI_API_KEY`)
+   10. Agent learning 구조 (6 agents + 6 learning + 2 templates, 마스터 측)
 
 2. **결과 리포트** — 각 항목 ✅/❌/⏭.
 

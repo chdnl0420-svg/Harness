@@ -64,7 +64,7 @@ WARN="${C_YELLOW}⚠️${C_RESET}"
 SKIP="${C_DIM}⏭${C_RESET}"
 
 # ===== 상태 누적 =====
-TOTAL=9
+TOTAL=10
 PASSED=0
 FAILED=()       # (label, hint)
 AUTO_FIXABLE=() # (label, install cmd)
@@ -236,6 +236,29 @@ check_9_gemini_key() {
     else
         record_fail 9 "Gemini API key" \
             "API key 미설정.\n\n        ▶ 한 줄 등록 (가장 간단):\n            ① https://aistudio.google.com/apikey 에서 키 발급 + 복사\n            ② WSL 터미널에 아래 줄을 붙여넣고, 따옴표 안만 발급받은 키로 교체 후 Enter:\n\n            bash ~/.claude/skills/harness/core/setup-gemini-key.sh \"AIzaSy_여기에_키_붙여넣기\"\n\n            ③ Claude Code 에서: /harness-setup (재검진)\n\n        (별창 자동 띄우기를 원하면 /harness-setup --fix 자동 호출되는 경로 참고)"
+    fi
+}
+
+# ===== 검사 10: Agent learning 구조 (마스터) =====
+check_10_agent_learning() {
+    local missing=()
+    local agents=(harness-planner harness-architect harness-code-reviewer harness-security-reviewer harness-tdd-guide harness-build-resolver)
+
+    for a in "${agents[@]}"; do
+        [ -f "$SKILL_ROOT/agents/$a.md" ] || missing+=("agents/$a.md")
+        [ -f "$SKILL_ROOT/agents/learning/$a.md" ] || missing+=("agents/learning/$a.md")
+    done
+    [ -f "$SKILL_ROOT/agents/learning/README.md" ] || missing+=("agents/learning/README.md")
+    [ -f "$SKILL_ROOT/templates/learning-file.md" ] || missing+=("templates/learning-file.md")
+    [ -f "$SKILL_ROOT/templates/learning-proposal.md" ] || missing+=("templates/learning-proposal.md")
+
+    if [ "${#missing[@]}" -eq 0 ]; then
+        record_pass 10 "Agent learning 구조" "(6 agents + 6 learning + 2 templates)"
+    else
+        local list
+        list=$(printf '\n            - %s' "${missing[@]}")
+        record_fail 10 "Agent learning 구조" \
+            "마스터 측 파일 ${#missing[@]}개 누락:${list}\n\n        ▶ 해결: /harness-setup --update (GitHub 최신본 재설치)"
     fi
 }
 
@@ -494,6 +517,7 @@ check_6_codex
 check_7_codex_auth
 check_8_gemini
 check_9_gemini_key
+check_10_agent_learning
 
 # 결과 요약
 FAIL_COUNT=${#FAILED[@]}

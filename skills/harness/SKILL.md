@@ -248,21 +248,33 @@ wsl -e bash -lc '
 
 **우선 `harness-planner` agent 위임 (Learning Protocol 적용)**.
 
-a. **prior learning 로드**: 두 경로를 Read (없으면 빈 문자열):
+a. **프로젝트 사양 로드** ("Project Spec Layer" 섹션 참조):
+   - `<PROJECT>/CLAUDE.md` (있으면)
+   - `<PROJECT>/docs/PRD.md`, `ARCHITECTURE.md`, `ADR.md` (각각 있고 비어 있지 않으면)
+   - `<PROJECT>/docs/UI_GUIDE.md` (헤더만 있으면 skip)
+   - ADR 은 최근 10건만, 60KB cap 초과 시 추가 압축.
+
+b. **prior learning 로드**: 두 경로를 Read (없으면 빈 문자열):
    - 공용: `~/.claude/skills/harness/agents/learning/harness-planner.md`
    - 프로젝트: `<PROJECT>/.harness/agents/learning/harness-planner.md`
    둘을 머지 (프로젝트가 공용을 덮어쓰기). 5섹션 (Principles/Patterns/Anti-patterns/Project-Specific/Open Questions) 그대로 유지.
 
-b. **Task 도구로 호출** (`subagent_type: harness-planner`):
-   - prompt 앞에 `## Prior Learning\n<merged content>\n\n## 본 작업\n<원 요청>` 형태로 prepend.
-   - prepend 가 비어도(처음 호출) 빈 섹션 그대로 둠 — 형식 일관성.
+c. **Task 도구로 호출** (`subagent_type: harness-planner`):
+   - prompt 앞에 다음 순서로 prepend:
+     1. `## Project Constitution` (CLAUDE.md)
+     2. `## Project Spec` (PRD / ARCHITECTURE / ADR / UI_GUIDE)
+     3. `## Prior Learning` (learning 머지본)
+     4. `## 본 작업` (원 요청)
+   - 비어 있는 섹션은 헤더만 두거나 생략 (형식 일관성).
 
-c. **Learning Proposals 처리**: agent 응답 끝에 `## Learning Proposals` 있으면:
+d. **Learning Proposals 처리**: agent 응답 끝에 `## Learning Proposals` 있으면:
    - 검증 게이트 (아래 "Learning Proposal Validation Gate" 절 참조).
    - 통과 시 Edit 으로 learning 파일 갱신 (공용/프로젝트 중 적절한 쪽). 일반 원칙은 공용, 프로젝트 컨벤션은 프로젝트.
    - 변경 diff 를 progress-<id>.md `learning_updates` 섹션에 기록 (audit trail).
 
-d. plan 본문은 `<PROJECT_ROOT>/.harness/plans/plan-<id>.md` v1 으로 Write. frontmatter `status: self-review` → Phase 1.1.
+e. plan 본문은 `<PROJECT_ROOT>/.harness/plans/plan-<id>.md` v1 으로 Write. frontmatter `status: self-review` → Phase 1.1.
+
+f. **사양 빈 상태 안내** (조건부): 위 a 에서 PRD/ARCHITECTURE 가 둘 다 템플릿 상태이면, plan 끝에 1줄 안내: `💡 docs/PRD.md, docs/ARCHITECTURE.md 가 비어 있어요. /harness-spec prd 로 채우면 다음 작업 정확도가 올라갑니다.`
 
 **Gemini Research 호출**: 작성 중 외부 정보 필요 시 자유롭게.
 
@@ -470,7 +482,13 @@ Read tool: <PROJECT_ROOT>/.harness/plans/plan-<id>.md
 
 1. plan.md frontmatter `status: approved` + Approval 섹션 채움 (Edit)
 2. **Write 도구로** progress-<id>.md 초기화 (`templates/progress.md` 기반)
-3. Phase 2 또는 Phase 3로 진행
+3. **ADR 자동 append** ("Project Spec Layer" 섹션 참조):
+   - plan.md 에서 `## ADR 후보` 섹션 파싱 (있을 때만).
+   - 각 후보를 ADR-NNN entry 로 변환 (NNN = 현재 `docs/ADR.md` 최대 번호 + 1).
+   - `docs/ADR.md` 끝에 append (Edit).
+   - 사용자에게 `🗂️ ADR-NNN ~ MMM 건 추가 (docs/ADR.md)` 1줄 보고.
+   - plan.md frontmatter 에 `adr_added: [NNN, ..., MMM]` 기록.
+4. Phase 2 또는 Phase 3로 진행
 
 ---
 
@@ -799,6 +817,71 @@ in_progress 작업들 리스트.
 | Result | `result-<REQUEST_ID>.md` |
 
 REQUEST_ID: `YYYYMMDD-HHMMSS-<slug>`
+
+---
+
+## 📚 Project Spec Layer (장기 컨텍스트)
+
+harness 는 워크플로우당 산출물(`.harness/`) 외에 **장기 사양 문서** 를 프로젝트 루트에 둔다. AI 가 매 작업 시 자동으로 읽고 컨텍스트에 반영.
+
+### 위치 (프로젝트 루트, .harness/ 와 별개)
+
+```
+<PROJECT>/
+├── CLAUDE.md             — 프로젝트 헌법 (이 프로젝트만의 규칙)
+├── docs/
+│   ├── PRD.md            — 뭘 만드는지
+│   ├── ARCHITECTURE.md   — 어떻게 만드는지
+│   ├── ADR.md            — 왜 이렇게 만드는지 (결정 누적)
+│   └── UI_GUIDE.md       — 어떻게 보여야 하는지 (선택, 비워둬도 OK)
+```
+
+부트스트랩 시 빈 템플릿이 자동 시드. **이미 있는 파일은 절대 안 건드림**.
+
+### Phase 1.0 자동 prepend
+
+`harness-planner` 호출 직전 메인 Claude 가 다음 순서로 prompt 앞에 prepend:
+
+1. `## Project Constitution` — `<PROJECT>/CLAUDE.md` 본문 (있으면).
+2. `## Project Spec`:
+   - PRD: `docs/PRD.md` 본문 (있으면, 헤더 + 채워진 섹션만).
+   - ARCHITECTURE: `docs/ARCHITECTURE.md` 본문 (있으면).
+   - ADR: `docs/ADR.md` 의 **최근 10건** (전체 800줄 이하면 전체).
+   - UI_GUIDE: `docs/UI_GUIDE.md` 본문 (헤더 + "비어 있음" 만 있으면 skip).
+3. `## Prior Learning` — 기존 learning protocol 그대로.
+4. `## 본 작업` — 사용자 원 요청.
+
+**크기 cap**: spec 4개 + learning 합쳐 prepend 가 60KB 초과 시 ADR 부터 잘림 (최근 5건만). 그래도 초과면 ARCHITECTURE 의 환경변수·배포 섹션 제거. 사용자에게 "spec 압축됨" 1줄 보고.
+
+### Phase 1.5 ADR 자동 append
+
+Plan v(최종) 의 `## ADR 후보` 섹션을 파싱:
+
+1. 각 후보를 ADR-NNN entry 로 변환 (NNN = 현재 ADR.md 최대 번호 + 1).
+2. `docs/ADR.md` 끝에 append.
+3. 사용자에게 `🗂️ ADR-NNN ~ MMM 건 추가됨 (docs/ADR.md)` 1줄 보고.
+4. plan.md `frontmatter` 에 `adr_added: [NNN, ..., MMM]` 기록 (audit).
+
+ADR 후보가 없으면 이 단계 스킵.
+
+### `/harness-spec` 명령
+
+장기 사양 문서를 대화형으로 작성·갱신. 상세는 `commands/harness-spec.md`.
+
+```
+/harness-spec init         # 5개 파일 빈 템플릿 생성
+/harness-spec prd          # PRD 대화형 작성
+/harness-spec architecture # ARCHITECTURE 대화형 작성
+/harness-spec adr add      # 새 ADR entry 추가
+/harness-spec ui           # UI_GUIDE 대화형 작성 (선택)
+/harness-spec claude       # 프로젝트 CLAUDE.md 작성
+```
+
+### 사양 비어 있을 때
+
+부트스트랩 직후엔 5개 파일이 모두 템플릿 상태(`{프로젝트명}` 같은 placeholder). 그래도 `/harness` 정상 동작. 단, 첫 plan 작성 끝나면 1줄 안내:
+
+> 💡 `docs/PRD.md` 가 비어 있어요. `/harness-spec prd` 로 채우면 다음 작업이 더 정확해집니다.
 
 ---
 

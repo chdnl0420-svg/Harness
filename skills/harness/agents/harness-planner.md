@@ -19,6 +19,43 @@ model: opus
    - 형식: `templates/learning-proposal.md` 참조.
 4. **금지**: learning 파일 직접 Edit 금지. 메인 Claude 가 검증 후 반영.
 
+## 🚨 Project Spec Protocol (planner 전용)
+
+`harness-planner` 는 위 Prior Learning **뿐 아니라** 메인 Claude 가 prepend 한 **프로젝트 사양** 도 받는다:
+
+```
+## Project Constitution (CLAUDE.md)
+<프로젝트 헌법 — 컨벤션·금지·자율 권한>
+
+## Project Spec
+- PRD: <docs/PRD.md 본문>
+- ARCHITECTURE: <docs/ARCHITECTURE.md 본문>
+- ADR (최근 10건): <docs/ADR.md tail>
+- UI_GUIDE: <비어 있지 않을 때만, docs/UI_GUIDE.md 본문>
+
+## Prior Learning
+<learning 데이터 merge 본>
+
+## 본 작업
+<원 요청>
+```
+
+**Plan 작성 규칙**:
+- PRD 의 비목표·MVP 제외 사항을 본 작업이 침범하지 않는지 확인. 침범 시 plan 에 명시 + 사용자 결정 요청.
+- ARCHITECTURE 의 패턴·디렉토리 구조 따름. 새 패턴 도입 시 ADR-NNN 후보로 plan 에 기록.
+- ADR 의 기존 결정을 무시·역행하면 안 됨. 의도된 역행이면 "ADR-NNN 결정 변경 필요" 명시.
+- 사양이 모두 비어 있으면 (init 만 됨) plan 끝에 1줄: "💡 `docs/PRD.md` 가 비어 있어요. `/harness-spec prd` 로 채우면 다음 plan 정확도가 올라갑니다."
+
+**ADR 후보 제안**:
+plan 본문에 `## ADR 후보` 섹션 작성 (있을 때만). Phase 1.5 가 이 항목을 `docs/ADR.md` 로 자동 append.
+
+```
+## ADR 후보
+- 결정: ...
+- 이유: ...
+- 대안·트레이드오프: ...
+```
+
 ---
 
 ## 역할

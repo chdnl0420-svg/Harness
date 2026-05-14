@@ -42,6 +42,7 @@ Claude는 이 명령 받으면 **순서대로**:
 |------|------|------|
 | **슬래시 명령** | `/harness` | 본 워크플로우 시작·재개·상태 조회 |
 | | `/harness-setup` | 의존성 10개 항목 검진 + 자동 설치 |
+| | `/harness-spec` | 프로젝트 사양 (PRD/ARCH/ADR/UI) + 헌법 작성 |
 | | `/harness-review` | 즉석 코드/문서 리뷰 (Codex) |
 | | `/harness-audit` | 저장소 audit 점수표 |
 | | `/harness-distill` | agent learning 파일 압축 |
@@ -86,6 +87,27 @@ Phase 5:   Complete       — result.md + 중학생 가독성 report.md
 **중단/한계 시**: 어디서 멈췄든 항상 `report-<id>.md` 작성됨.
 
 **관련 파일**: `~/.claude/skills/harness/SKILL.md`
+
+---
+
+### 📚 Project Spec Layer (장기 컨텍스트)
+
+매 `/harness` 호출 시 자동으로 참조되는 **장기 사양 문서**.
+
+| 파일 | 용도 |
+|------|------|
+| `<PROJECT>/CLAUDE.md` | 프로젝트 헌법 (컨벤션·금지·자율 권한) |
+| `<PROJECT>/docs/PRD.md` | 뭘 만드는지 (목표·핵심 기능·MVP 제외) |
+| `<PROJECT>/docs/ARCHITECTURE.md` | 어떻게 만드는지 (디렉토리·패턴·데이터 흐름) |
+| `<PROJECT>/docs/ADR.md` | 왜 이렇게 만드는지 (결정 누적, Phase 1.5 가 자동 append) |
+| `<PROJECT>/docs/UI_GUIDE.md` | 어떻게 보여야 하는지 (선택, 비워둬도 OK) |
+
+부트스트랩 시 빈 템플릿 자동 시드. **이미 있는 파일은 보호**.
+
+작성: `/harness-spec init` → `/harness-spec prd` → `/harness-spec architecture` → ...
+사양이 채워질수록 plan 정확도 ↑.
+
+**관련 파일**: `~/.claude/skills/harness/templates/doc-*.md`, `project-claude.md`
 
 ---
 
@@ -135,6 +157,20 @@ Phase 5:   Complete       — result.md + 중학생 가독성 report.md
 옵션:
 - `--fix` — 누락 항목 자동 처리 시도.
 - `--update` — GitHub 최신본 재설치.
+
+#### `/harness-spec <subcommand>`
+프로젝트 사양 문서 작성·갱신. 매 `/harness` 호출 시 자동 참조됨.
+
+```
+/harness-spec                # 5개 파일 상태 보기
+/harness-spec init           # 빈 템플릿 5개 시드 (있는 것은 건너뜀)
+/harness-spec prd            # PRD 작성 (대화형)
+/harness-spec architecture   # ARCHITECTURE 작성 (대화형)
+/harness-spec adr add        # 새 ADR entry 추가
+/harness-spec adr list       # 기존 ADR 목록
+/harness-spec ui             # UI_GUIDE 작성 (선택)
+/harness-spec claude         # 프로젝트 CLAUDE.md 작성
+```
 
 #### `/harness-review <자연어로 무엇을 리뷰할지>`
 plan/code/문서를 Codex 로 즉석 리뷰. `/harness` 워크플로우 안 쓰고 가볍게 의견만 받을 때.

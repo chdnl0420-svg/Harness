@@ -90,7 +90,12 @@ fi
 # ===== 모드별 시스템 프롬프트 =====
 case "$MODE" in
     code)
-        SYSTEM_PROMPT='당신은 시니어 코드 리뷰어입니다. 코드/설계를 다음 기준으로 검토하세요:
+        SYSTEM_PROMPT='[중요 — 파일 수정 금지]
+당신은 리뷰만 수행합니다. 이 작업 중 어떤 소스 파일도 수정/생성/삭제하지 마세요.
+유일한 예외: 작업 끝에 sentinel 파일 한 개만 작성 (지시는 프롬프트 끝에 있음).
+코드 변경·리팩토링·테스트 작성 모두 금지. 지적만 텍스트로.
+
+당신은 시니어 코드 리뷰어입니다. 코드/설계를 다음 기준으로 검토하세요:
 - 명확성과 가독성
 - 잠재적 버그 / edge case
 - 보안 취약점
@@ -125,7 +130,11 @@ case "$MODE" in
 verbatim 인용만, 추측 금지.'
         ;;
     plan-critique)
-        SYSTEM_PROMPT='당신은 시니어 엔지니어로, Claude가 작성한 작업 계획서를 리뷰합니다.
+        SYSTEM_PROMPT='[중요 — 파일 수정 금지]
+당신은 plan critique 만 수행합니다. 어떤 파일도 수정/생성/삭제하지 마세요.
+유일한 예외: 작업 끝에 sentinel 파일 한 개만 작성 (지시는 프롬프트 끝에 있음).
+
+당신은 시니어 엔지니어로, Claude가 작성한 작업 계획서를 리뷰합니다.
 실제 구현 시작 전 최종 게이트입니다. 누락/위험/개선점을 적극적으로 찾아내세요.
 
 다음 관점에서 critique 하세요:
@@ -202,11 +211,9 @@ elif (cd "$PROJECT_DIR" && git rev-parse --is-inside-work-tree >/dev/null 2>&1);
 fi
 
 if [ "$IS_GIT_REPO" = "0" ]; then
-    echo "ℹ️  $PROJECT_DIR 는 git repo가 아닙니다. 자동 git init..." >&2
-    (cd "$PROJECT_DIR" && git init -q -b main 2>&1 | sed 's/^/   /' >&2) || {
-        echo "❌ git init 실패. 권한 또는 디렉토리 확인." >&2
-        exit 1
-    }
+    # 2026-05-14: workspace-write 샌드박스이지만 system prompt 가 sentinel 외 쓰기 금지.
+    # 비-git 폴더 자동 init 안 함 (사용자 환경 오염 회피).
+    echo "ℹ️  $PROJECT_DIR 는 git repo 가 아님 (리뷰는 텍스트 응답 + sentinel 만 쓰므로 무관)." >&2
 fi
 
 # ===== sentinel 지시 suffix 구축 =====
@@ -235,6 +242,9 @@ cat > "$INNER" <<'INNER_EOF'
 PROJECT="__PROJECT__"
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh" >/dev/null 2>&1
+# 2026-05-14: sandbox=workspace-write 로 복귀.
+# 이유: sentinel 완료 신호는 wrapper가 파일 쓰기로 감지함. read-only 면 sentinel 작성 불가 → 무한 대기.
+# 안전성: system prompt + sentinel-instructions.md 에서 "sentinel 외 파일 수정 절대 금지" 명시.
 exec codex --sandbox workspace-write -C "$PROJECT"
 INNER_EOF
 sed -i "s|__PROJECT__|$PROJECT_DIR|g" "$INNER"

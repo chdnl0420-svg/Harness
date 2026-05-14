@@ -107,7 +107,7 @@ UI_GUIDE.md 는 **선택**. 작성하지 않아도 `/harness` 정상 동작.
 
 ### `/harness` 워크플로우와의 연동
 
-- **Phase 1.0 (Plan Draft)**: `harness-planner` 가 prompt 앞에 다음 자동 prepend:
+- **step2 (도메인 설계)** 및 **step3 (구현 계획)**: `plan` skill 호출 직전 메인 Claude 가 다음을 prompt 앞에 prepend:
   ```
   ## 프로젝트 헌법
   <CLAUDE.md 내용>
@@ -118,7 +118,8 @@ UI_GUIDE.md 는 **선택**. 작성하지 않아도 `/harness` 정상 동작.
   - ADR (최근 10건): <docs/ADR.md tail>
   - UI_GUIDE: <docs/UI_GUIDE.md, 비어 있지 않으면>
   ```
-- **Phase 1.5 (Finalize)**: plan.md 의 "주요 결정" 항목을 ADR entry 로 자동 append. 사용자에게 "ADR-N 건 추가" 1줄 보고.
+  (`--noagent` 모드도 동일 — skill 호출 자체는 항상 메인 Claude 가 수행)
+- **complete 단계**: domain/implementation/리뷰 결과의 "주요 결정" 항목을 ADR entry 로 자동 append. 사용자에게 "ADR-N 건 추가" 1줄 보고.
 
 ### 비어 있을 때
 

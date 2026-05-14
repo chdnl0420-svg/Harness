@@ -26,5 +26,6 @@ codex-review.sh wrapper가 사용자 prompt 끝에 append.
 - 마지막 줄의 `<<<HARNESS-DONE>>>` 마커는 반드시 단독 라인.
 - 마커 위에는 응답 본문(SYSTEM PROMPT가 요구한 STRICT 포맷 그대로).
 - 마커 다음 줄에는 아무것도 추가 금지.
+- **이 sentinel 파일 외 어떤 파일도 작성·수정·삭제 금지.** 위 경로 정확히 그 한 파일만 작성.
 
 이 파일과 마커가 호출자(harness wrapper)에게 작업 완료를 알리는 유일한 공식 신호입니다. 누락 시 호출자가 무한 대기 → 작업 실패로 처리됩니다.

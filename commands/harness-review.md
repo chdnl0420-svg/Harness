@@ -124,28 +124,38 @@ focus 가 비어있으면 wrapper의 기본 SYSTEM_PROMPT 가 알아서 동작.
 
 ## Step 4: Codex 호출 (Bash 실제 실행 필수)
 
-```bash
-# Wrapper 경로 결정: 프로젝트 .harness/ 우선, 없으면 마스터 fallback
-WRAPPER=".harness/wrappers/codex-review.sh"
-if [ ! -f "$WRAPPER" ]; then
-    WRAPPER="$HOME/.claude/skills/harness/wrappers/codex-review.sh"
-fi
+🚨 **반드시 `--prompt-file` 사용**. `$REVIEW_PROMPT` 를 인자로 직접 넘기면 큰 파일/다중 파일에서
+"Argument list too long" (ARG_MAX) 실패. Step 3 에서 빌드한 prompt 를 임시 파일에 먼저 저장.
 
+```bash
+# 1) prompt 파일 저장 (Write 도구로)
+#    경로: .harness/reviews/_adhoc-<TS>-input.txt
+#    내용: Step 3 에서 빌드한 $REVIEW_PROMPT 전체
+
+# 2) wrapper 호출 (forward slash 통일)
+SKILL_WIN="$(cmd.exe /c echo %USERPROFILE% 2>/dev/null | tr -d '\r')\\.claude\\skills\\harness"
 PROJECT_WIN="$(pwd -W 2>/dev/null || pwd)"
+PROMPT_FILE_WIN="$PROJECT_WIN/.harness/reviews/_adhoc-<TS>-input.txt"
+
 wsl -e bash -lc '
     PROJECT_WSL=$(wslpath -u "$1")
-    WRAPPER_REL="$2"
+    SKILL_WSL=$(wslpath -u "$2" 2>/dev/null || echo "$HOME/.claude/skills/harness")
+    PROMPT_WSL=$(wslpath -u "$3")
     if [ -f "$PROJECT_WSL/.harness/wrappers/codex-review.sh" ]; then
-        bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode "'"$MODE"'" "$3"
+        bash "$PROJECT_WSL/.harness/wrappers/codex-review.sh" --mode "'"$MODE"'" --prompt-file "$PROMPT_WSL"
+    elif [ -f "$SKILL_WSL/wrappers/codex-review.sh" ]; then
+        bash "$SKILL_WSL/wrappers/codex-review.sh" --mode "'"$MODE"'" --prompt-file "$PROMPT_WSL"
     else
-        bash "$HOME/.claude/skills/harness/wrappers/codex-review.sh" --mode "'"$MODE"'" "$3"
+        bash "$HOME/.claude/skills/harness/wrappers/codex-review.sh" --mode "'"$MODE"'" --prompt-file "$PROMPT_WSL"
     fi
-' _ "$PROJECT_WIN" "$WRAPPER" "$REVIEW_PROMPT"
+' _ "$PROJECT_WIN" "$SKILL_WIN" "$PROMPT_FILE_WIN"
 ```
 
 **MODE**: `code` (기본) 또는 `plan-critique`.
 
 **run_in_background 금지** — 결과 동기 수신 필요.
+
+❌ **금지 패턴**: `--mode code "$REVIEW_PROMPT"` (인자 직접). ARG_MAX 한계 (~128KB) 로 큰 리뷰에서 거의 항상 실패.
 
 ## Step 5: Exit Code 처리
 
@@ -205,7 +215,7 @@ wsl -e bash -lc '
 ## Anti-patterns (금지)
 
 - ❌ `$ARGUMENTS` 비었는데 git diff로 자동 진행
-- ❌ Codex 호출 없이 Claude 가 직접 리뷰 텍스트 작성 (Phase 5에서 exit 3 인 경우 외)
+- ❌ Codex 호출 없이 Claude 가 직접 리뷰 텍스트 작성 (Step 5에서 exit 3 (quota 소진) fallback 인 경우 외)
 - ❌ 응답 패러프레이즈 — verbatim 보존
 - ❌ 저장 skip — 무조건 `.harness/reviews/adhoc-*.md`
 - ❌ `run_in_background: true` — 동기 수신 필요

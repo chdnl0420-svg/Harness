@@ -12,7 +12,7 @@ completed: <ISO_TIMESTAMP_END>
 plan_final_version: <N>
 research_count: <N>
 review_count: <N>
-critique_method: <codex | gemini | self-only>
+critique_method: <codex | code-review-skill | self-only>
 ---
 
 # ✅ Result: <SHORT_TITLE>
@@ -36,7 +36,7 @@ critique_method: <codex | gemini | self-only>
 ### Plan Stage (Phase 1)
 - Plan revisions: <N>
 - Self-Review final: <X/10>
-- External critique: <Codex LGTM | Gemini LGTM | self-only>
+- External critique: <Codex LGTM | code-review-skill LGTM | self-only>
 
 ### Research (Phase 2 + on-demand)
 - Total research calls: <N>
@@ -75,5 +75,5 @@ critique_method: <codex | gemini | self-only>
 ## Cost Summary
 
 - Codex critique/review calls: <N> (subscription)
-- Gemini research calls: <N> (free OAuth tier)
+- Research files written: <N> (메인 Claude 직접 수행)
 - Claude main orchestration: subscription (Claude Max)

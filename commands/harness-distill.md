@@ -11,10 +11,10 @@ agent 의 learning 데이터가 비대해지거나 항목이 중복·노후화�
 ```
 /harness-distill <agent-name>          # 공용 learning 정리
 /harness-distill <agent-name> --project # 현재 프로젝트 learning 정리
-/harness-distill --all                 # 공용 6개 agent 모두
+/harness-distill --all                 # 공용 모든 agent
 ```
 
-agent-name: `harness-planner` | `harness-architect` | `harness-code-reviewer` | `harness-security-reviewer` | `harness-tdd-guide` | `harness-build-resolver`
+agent-name: `harness-planner` | `harness-architect` | `harness-code-reviewer` | `harness-security-reviewer` | `harness-tdd-guide` | `harness-build-resolver` | `harness-qa-engineer` | `harness-customer-user`
 
 ## 동작
 
@@ -66,7 +66,7 @@ agent-name: `harness-planner` | `harness-architect` | `harness-code-reviewer` | 
 → 프로젝트 learning 만 정리
 
 /harness-distill --all
-→ 공용 6개 순회. 각 agent 별 별도 승인.
+→ 공용 모든 agent 순회. 각 agent 별 별도 승인.
 ```
 
 ## 관련

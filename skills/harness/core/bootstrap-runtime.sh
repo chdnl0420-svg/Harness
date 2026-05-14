@@ -26,6 +26,8 @@ SKILL_WSL=$(dirname "$SCRIPT_DIR")
 # 필수 파일 목록
 WRAPPERS="codex-review.sh gemini-research.sh auth-helper.sh"
 CORES="sync-creds.sh"
+# Markdown 템플릿 (실행파일 아님, CRLF/+x 보정 제외)
+CORE_TEMPLATES="sentinel-instructions.md"
 
 # 1. 마스터 무결성 sanity check
 for f in $WRAPPERS; do
@@ -38,6 +40,12 @@ done
 for f in $CORES; do
     if [ ! -f "$SKILL_WSL/core/$f" ]; then
         echo "FATAL: master core missing: $SKILL_WSL/core/$f" >&2
+        exit 1
+    fi
+done
+for f in $CORE_TEMPLATES; do
+    if [ ! -f "$SKILL_WSL/core/$f" ]; then
+        echo "FATAL: master core template missing: $SKILL_WSL/core/$f" >&2
         exit 1
     fi
 done
@@ -69,6 +77,9 @@ done
 for f in $CORES; do
     copy_if_needed "$SKILL_WSL/core/$f" "$PROJECT_WSL/.harness/core/$f" "$FORCE"
 done
+for f in $CORE_TEMPLATES; do
+    copy_if_needed "$SKILL_WSL/core/$f" "$PROJECT_WSL/.harness/core/$f" "$FORCE"
+done
 
 # 4. CRLF 정규화 + 실행권한 (idempotent)
 sed -i 's/\r$//' "$PROJECT_WSL/.harness/wrappers/"*.sh "$PROJECT_WSL/.harness/core/"*.sh 2>/dev/null || true
@@ -91,6 +102,9 @@ for f in $WRAPPERS; do
     check_stale "$SKILL_WSL/wrappers/$f" "$PROJECT_WSL/.harness/wrappers/$f"
 done
 for f in $CORES; do
+    check_stale "$SKILL_WSL/core/$f" "$PROJECT_WSL/.harness/core/$f"
+done
+for f in $CORE_TEMPLATES; do
     check_stale "$SKILL_WSL/core/$f" "$PROJECT_WSL/.harness/core/$f"
 done
 

@@ -378,18 +378,30 @@ while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
     fi
 
     # 3. 에러 패턴 (capture-pane scan)
-    CAPTURE=$(tmux capture-pane -t "$SESSION_NAME" -p -S - 2>/dev/null)
-    if echo "$CAPTURE" | grep -qiE "codex_core::tools::router:[[:space:]]*error=|write_stdin failed: stdin is closed for this session"; then
-        END_REASON="codex-internal-error"
-        break
-    fi
-    if echo "$CAPTURE" | grep -qiE "token_invalidated|401 unauthorized|refresh_token_reused|sign in again|please log out|not authenticated"; then
-        END_REASON="auth-failure"
-        break
-    fi
-    if echo "$CAPTURE" | grep -qiE "rate.?limit|quota.?exceeded|usage.?limit|too many requests|429|plan.?limit|out of credits|insufficient_quota"; then
-        END_REASON="quota-exhausted"
-        break
+    # 마지막 200 라인만 검사 → 큰 prompt 의 paste echo 는 위로 스크롤되어 영향 감소.
+    CAPTURE=$(tmux capture-pane -t "$SESSION_NAME" -p -S -200 2>/dev/null)
+
+    # sentinel 미존재 시에만 에러 패턴 스캔.
+    # sentinel 이 생성됐다는 건 Codex 가 이미 인증·과금 통과하고 응답 작성 중이라는 뜻.
+    # 그 시점 이후엔 quota/auth 메시지가 capture 에 새로 나올 일이 거의 없고,
+    # 사용자 prompt 본문에 들어간 "rate limit" 같은 일반 단어가 false positive 를 일으킴.
+    if [ ! -f "$SENTINEL" ]; then
+        # Codex 내부 subprocess 에러 — 매우 specific 한 Rust 모듈 prefix 라 prompt 와 충돌 거의 없음.
+        if echo "$CAPTURE" | grep -qiE "codex_core::tools::router:[[:space:]]*error=|write_stdin failed: stdin is closed for this session"; then
+            END_REASON="codex-internal-error"
+            break
+        fi
+        # 인증 실패 — API 에러 코드 형태로 anchoring (prompt 일반어와 분리).
+        if echo "$CAPTURE" | grep -qiE "token_invalidated|HTTP/[0-9.]+ 401|\"code\":[[:space:]]*\"unauthorized\"|refresh_token_reused|please log in again|/login"; then
+            END_REASON="auth-failure"
+            break
+        fi
+        # Quota 소진 — OpenAI/Codex API 가 실제로 emit 하는 에러 코드/문구만 매칭.
+        # 일반 명사 "rate limit", "plan limit" 단독 매칭 제거 (prompt 본문 false positive 원인).
+        if echo "$CAPTURE" | grep -qiE "rate_limit_exceeded|insufficient_quota|quota_exceeded|usage_limit_exceeded|HTTP/[0-9.]+ 429|You've reached your (usage|monthly) limit|Plus plan limit reached|out of credits"; then
+            END_REASON="quota-exhausted"
+            break
+        fi
     fi
 
     # 4. idle 검사 — IDLE_LIMIT=0 이면 skip (사용자가 비활성화)
@@ -479,6 +491,9 @@ case "$END_REASON" in
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "⚠️  Codex quota 소진 — exit 3, ${ELAPSED}s"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            # false positive 디버깅: 어떤 라인이 매칭됐는지 마지막 3개 출력.
+            echo "📝 매칭된 라인 (false positive 의심 시 검토):"
+            echo "$CAPTURE" | grep -iE "rate_limit_exceeded|insufficient_quota|quota_exceeded|usage_limit_exceeded|HTTP/[0-9.]+ 429|You've reached your (usage|monthly) limit|Plus plan limit reached|out of credits" | tail -3 | sed 's/^/    │ /'
         } >&2
         echo "CODEX_QUOTA_EXHAUSTED: logged in but quota out — fallback to Claude" >&2
         EXIT_CODE=3

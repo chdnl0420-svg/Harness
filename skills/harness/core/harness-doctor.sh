@@ -2,17 +2,22 @@
 # harness-doctor.sh — Windows+WSL 환경의 harness 의존성 검진 + GitHub 최신화
 #
 # 사용법:
-#   bash harness-doctor.sh                    # 검사 + npm/apt/key 자동 fix + outdated 시 자동 업데이트
+#   bash harness-doctor.sh                    # 검사 + npm/apt/key 자동 fix. 업데이트는 안내만 (수동 trigger 필요)
 #   bash harness-doctor.sh --fix              # 위와 동일 (alias)
 #   bash harness-doctor.sh --quiet            # 모두 OK면 출력 없음 + exit 0
-#   bash harness-doctor.sh --update           # 검진 skip + 즉시 업데이트 (force)
-#   bash harness-doctor.sh --no-update        # 검진은 진행, 업데이트는 안내만 (자동 적용 안 함)
+#   bash harness-doctor.sh --update           # 검진 skip + 즉시 업데이트 (force, 명시 동의)
+#   bash harness-doctor.sh --auto-update      # 검진 통과 + outdated 감지 시 자동 업데이트 (이전 default)
 #   bash harness-doctor.sh --no-version-check # GitHub 조회 자체 skip (오프라인)
 #
 # Exit code:
 #   0 = 모든 prereq OK (또는 --fix/--update 로 해결됨)
 #   1 = 누락 항목 있음
 #   2 = 환경 자체가 부적합 (WSL 없음 등)
+#
+# 정책 (2026-05-14 변경):
+#   - auto-update default OFF. learning 파일을 덮어쓰는 사고 방지.
+#   - GitHub 최신 감지 시 안내만 출력 후 사용자가 명시적으로 --update 또는 --auto-update 트리거.
+#   - --update 도 agents/learning/*.md 는 보존 (덮어쓰기 제외).
 
 set -u
 
@@ -20,13 +25,14 @@ set -u
 MODE="report"           # report | fix | quiet
 DO_UPDATE=0             # --update: 검진 skip하고 즉시 업데이트
 SKIP_VERSION_CHECK=0    # --no-version-check: GitHub 조회 자체 skip
-SKIP_AUTO_UPDATE=0      # --no-update: 검진 통과 + outdated 감지해도 자동 업데이트 안 함
+SKIP_AUTO_UPDATE=1      # default: 자동 업데이트 OFF. --auto-update 로 켜야 자동 적용.
 for arg in "$@"; do
     case "$arg" in
         --fix) MODE="fix" ;;
         --quiet) MODE="quiet" ;;
         --update) DO_UPDATE=1 ;;
-        --no-update) SKIP_AUTO_UPDATE=1 ;;
+        --no-update) SKIP_AUTO_UPDATE=1 ;;       # 명시적 OFF (이미 default)
+        --auto-update) SKIP_AUTO_UPDATE=0 ;;     # opt-in 으로 ON
         --no-version-check) SKIP_VERSION_CHECK=1 ;;
         --help|-h)
             sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
@@ -322,11 +328,12 @@ check_version() {
         log "  ${WARN} 로컬 버전 정보 없음 (오래된 설치)"
         log "  최신 SHA: ${remote_sha:0:7}"
         if [ "$SKIP_AUTO_UPDATE" = "0" ]; then
-            log "  → 자동 업데이트 진행 (skip하려면 --no-update)"
+            log "  → 자동 업데이트 진행 (--auto-update 활성)"
             do_update
             return $?
         else
-            log "  업데이트 강제 실행: /harness-setup --update"
+            log "  ℹ️  auto-update default OFF (2026-05-14 정책). 수동 실행:"
+            log "      /harness-setup --update    또는    --auto-update (이번 한 번)"
         fi
         return 0
     fi
@@ -338,11 +345,14 @@ check_version() {
         log "      현재: ${local_sha:0:7}"
         log "      최신: ${remote_sha:0:7}"
         if [ "$SKIP_AUTO_UPDATE" = "0" ]; then
-            log "      → 자동 업데이트 진행 (skip하려면 --no-update)"
+            log "      → 자동 업데이트 진행 (--auto-update 활성)"
             do_update
             return $?
         else
-            log "      적용 (수동): /harness-setup --update"
+            log "      ℹ️  auto-update default OFF. 수동 trigger 필요:"
+            log "         /harness-setup --update          (즉시 업데이트)"
+            log "         /harness-setup --auto-update     (이번 한 번 자동)"
+            log "         (learning 파일은 항상 보존됨)"
         fi
     fi
 }
@@ -425,14 +435,36 @@ do_update() {
     fi
 
     # 5) 적용 (skill + commands)
+    # 5a) agents/learning/*.md 보존 — 축적된 학습 데이터는 source-of-truth 가 아니므로 덮어쓰기 제외.
+    #     (2026-05-14 정책 변경: blanket cp -r 이 learning 파일을 빈 템플릿으로 덮어쓴 사고 방지)
+    local learning_preserve_dir=""
+    if [ -d "$SKILL_ROOT/agents/learning" ]; then
+        learning_preserve_dir=$(mktemp -d -t harness-learning-preserve-XXXXXX)
+        cp -r "$SKILL_ROOT/agents/learning/." "$learning_preserve_dir/" 2>/dev/null || true
+        log "      🛡  agents/learning/ 보존 (덮어쓰기 제외)"
+    fi
+
     log "  📂 적용 중..."
     if cp -r "$src/skills/harness/." "$SKILL_ROOT/" 2>/dev/null; then
         log "      skills/harness/ ✓"
     else
         log "${FAIL} skill 복사 실패. 롤백:"
         log "      rm -rf '$SKILL_ROOT' && mv '$backup' '$SKILL_ROOT'"
+        [ -n "$learning_preserve_dir" ] && rm -rf "$learning_preserve_dir"
         rm -rf "$tmp"
         return 1
+    fi
+
+    # 5b) learning 파일 복원 (마스터의 빈 템플릿이 들어왔다면 사용자 데이터로 덮어쓰기)
+    if [ -n "$learning_preserve_dir" ] && [ -d "$learning_preserve_dir" ]; then
+        # 단, 마스터에 새로 추가된 learning 파일 (없던 agent) 은 기본 템플릿 유지.
+        # → 사용자 측에 이미 있었던 파일만 복원.
+        for f in "$learning_preserve_dir/"*.md; do
+            [ -f "$f" ] || continue
+            cp "$f" "$SKILL_ROOT/agents/learning/$(basename "$f")" 2>/dev/null || true
+        done
+        log "      ✓ agents/learning/ 복원 완료"
+        rm -rf "$learning_preserve_dir"
     fi
 
     mkdir -p "$COMMANDS_DIR"

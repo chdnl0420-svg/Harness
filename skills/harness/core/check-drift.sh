@@ -52,16 +52,22 @@ if [ ! -d "$MASTER_ROOT/core" ] || [ ! -d "$MASTER_ROOT/wrappers" ]; then
     exit 3
 fi
 
-# 검사 대상 수집: 마스터에 있는 모든 .sh (check-drift 자신 제외)
+# 검사 대상: bootstrap-runtime.sh 가 실제로 프로젝트 .harness/ 에 복사하는 파일만.
+# 마스터에만 존재하는 스크립트(bootstrap-runtime.sh, harness-doctor.sh, sync-from-master.sh,
+# setup-gemini-key.sh, run-interactive.sh, check-drift.sh 등)는 프로젝트에 없어도 정상이므로 제외.
+TRACKED_FILES=(
+    "wrappers/codex-review.sh"
+    "wrappers/gemini-research.sh"
+    "wrappers/auth-helper.sh"
+    "core/sync-creds.sh"
+    "core/sentinel-instructions.md"
+)
+
 gather_master_files() {
-    local f
-    for f in "$MASTER_ROOT"/core/*.sh "$MASTER_ROOT"/wrappers/*.sh; do
-        [ -f "$f" ] || continue
-        case "$(basename "$f")" in
-            check-drift.sh) continue ;;
-        esac
-        # 마스터 상대 경로 (core/foo.sh)
-        echo "${f#$MASTER_ROOT/}"
+    local rel
+    for rel in "${TRACKED_FILES[@]}"; do
+        [ -f "$MASTER_ROOT/$rel" ] || continue
+        echo "$rel"
     done
 }
 

@@ -1,6 +1,6 @@
 ---
 name: codex-reviewer
-description: PRIMARY code reviewer and plan critic using OpenAI Codex/GPT-5. ALWAYS USE for code reviews and plan critiques unless user explicitly requests Claude. If Codex is unavailable (exit code 2 = auth failure), the caller should fall back to Gemini (for plan critique) or to code-reviewer agent (for code review). AUTO-TRIGGER on "리뷰", "review", "critique", "검토" keywords.
+description: PRIMARY code reviewer and plan critic using OpenAI Codex/GPT-5. ALWAYS USE for code reviews and plan critiques unless user explicitly requests Claude. If Codex is unavailable (exit code 2 = auth failure), the caller should fall back to the code-review skill or to code-reviewer agent. AUTO-TRIGGER on "리뷰", "review", "critique", "검토" keywords.
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---

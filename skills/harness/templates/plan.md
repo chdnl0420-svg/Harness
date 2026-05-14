@@ -12,7 +12,7 @@ version: 1
 revision_count: 0
 user_request: "<USER_REQUEST>"
 project_dir: <PROJECT_DIR>
-critique_method: pending  # codex | gemini | self-only (set after Phase 1.2)
+critique_method: pending  # codex | code-review-skill | self-only (set after Phase 1.2)
 research_count: 0
 ---
 
@@ -57,7 +57,7 @@ research_count: 0
 - ❌ Failed: <list with item numbers>
 - Action: <auto-fix to v2 / proceed to Codex critique>
 
-#### v1 External Critique (codex / gemini / skipped)
+#### v1 External Critique (codex / code-review-skill / skipped)
 - Missing Pieces: <list>
 - Hidden Risks: <list>
 - Better Approaches: <list>
@@ -93,8 +93,8 @@ research_count: 0
 - [ ] YAGNI 원칙 준수
 
 ### 6. 외부 정보 필요성
-- [ ] Gemini 리서치 필요 여부 판단
-- [ ] (필요시) 호출 완료 및 결과 반영
+- [ ] 외부 리서치 필요 여부 판단
+- [ ] (필요시) 리서치 서브에이전트 호출 완료 및 결과 반영
 
 ### 7. 보안/성능 영향
 - [ ] 보안 민감 영역 식별 (인증, 입력 검증, 시크릿)
@@ -119,8 +119,8 @@ research_count: 0
 
 (이 섹션은 Phase 1.2 완료 후 채워짐)
 
-### Codex Critique (or Gemini fallback)
-- **Method:** <codex | gemini | self-only>
+### Codex Critique (or code-review skill fallback)
+- **Method:** <codex | code-review-skill | self-only>
 - **Missing Pieces:** <list>
 - **Hidden Risks:** <list>
 - **Better Approaches:** <list>
@@ -142,7 +142,7 @@ research_count: 0
 
 ## 📚 Linked Research Files
 
-(Gemini research 호출 시 자동 추가)
+(메인 Claude 가 리서치 수행 시 자동 추가)
 
 - research-<REQUEST_ID>-01-<slug>.md — <topic>
 - research-<REQUEST_ID>-02-<slug>.md — <topic>
@@ -155,4 +155,4 @@ research_count: 0
 - **Approved at:** <ISO_TIMESTAMP>
 - **Final version:** v<N>
 - **Total revisions:** <count> (limit: 3)
-- **Final critique:** <Codex LGTM / Gemini LGTM / self-only>
+- **Final critique:** <Codex LGTM / code-review-skill LGTM / self-only>

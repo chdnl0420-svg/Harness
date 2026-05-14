@@ -18,7 +18,7 @@ argument-hint: '[--update] [--no-version-check]'
 
 ## 동작 절차
 
-1. **10개 항목 검사:**
+1. **항목 검사:**
    1. WSL 환경
    2. Windows Terminal (`wt.exe`) — 선택
    3. 기본 도구 (`bash`/`git`/`curl`/`stdbuf` 등)
@@ -26,17 +26,13 @@ argument-hint: '[--update] [--no-version-check]'
    5. Node ≥ 20
    6. Codex CLI (`@openai/codex`)
    7. Codex 로그인 (`~/.codex/`)
-   8. Gemini CLI (`@google/gemini-cli`)
-   9. Gemini API key (`~/.bashrc` `GEMINI_API_KEY`)
-   10. Agent learning 구조 (6 agents + 6 learning + 2 templates, 마스터 측)
+   8. Agent learning 구조 (harness-* agents + learning + templates, 마스터 측)
 
 2. **결과 리포트** — 각 항목 ✅/❌/⏭.
 
-3. **npm 패키지 자동 설치** — Codex CLI / Gemini CLI 누락 시 `npm install -g` 자동 실행.
+3. **npm 패키지 자동 설치** — Codex CLI 누락 시 `npm install -g` 자동 실행.
 
-4. **Gemini API key 자동 별창** — 키 누락 감지 시 `wt.exe` 별창 띄움. 사용자는 키만 paste 하면 `~/.bashrc` 에 안전하게 저장됨 (형식 검증 + 기존 라인 교체 + 백업 생성).
-
-5. **OS 도구·Codex 로그인** — 자동 처리 불가. 화면 안내 따라 사용자가 직접 처리.
+4. **OS 도구·Codex 로그인** — 자동 처리 불가. 화면 안내 따라 사용자가 직접 처리.
 
 ## 실행 명령
 
@@ -71,8 +67,6 @@ wsl -e bash -lc '
 | 항목 | 자동? | 이유 |
 |------|------|------|
 | Codex CLI | ✅ | npm 패키지, user 영역, sudo 불필요 |
-| Gemini CLI | ✅ | 동일 |
-| Gemini API key | ✅ 반자동 | 한 줄 명령에 키 인자 전달 또는 `/harness-setup --fix` 가 별창 자동 띄움 |
 | **기본 도구 (apt: tmux, curl 등)** | ✅ **반자동** | `/harness-setup --fix` 가 wt.exe 별창 띄움 → 사용자가 sudo 비밀번호 입력 |
 | Node ≥ 20 | ⚠️ 가이드 | `nvm install 20` 권한 거부 빈도 → 사용자 직접 |
 | NVM | ❌ 가이드 | 시스템 설치 |
@@ -80,20 +74,14 @@ wsl -e bash -lc '
 
 ## 트러블슈팅 (이번 세션에서 발견된 트랩들)
 
-### 1. Gemini "untrusted folder" 거부
-→ wrapper에 `--skip-trust` 플래그 이미 적용됨.
+### 1. Codex CLI 내부 에러 (exit 4)
+→ codex_core::tools::router stdin closed. `npm i -g @openai/codex@latest` 후 재시도.
 
-### 2. Free tier 모델 정책 변경 (gemini-2.5-pro 차단)
-→ wrapper가 `-m` 미지정으로 CLI 기본값 사용. 필요 시 `HARNESS_GEMINI_MODEL=gemini-3-flash-preview` env override.
+### 2. Quota retry storm (분 단위 hang)
+→ wrapper의 awk watcher가 `Attempt N failed ≥4회` 감지 시 즉시 abort → Claude fallback.
 
-### 3. Quota retry storm (분 단위 hang)
-→ wrapper의 awk watcher가 `Attempt N failed ≥4회` 감지 시 즉시 abort + exit 3 → Claude fallback.
-
-### 4. `~/.bashrc` interactive-guard로 GEMINI_API_KEY 누락
-→ wrapper가 grep+eval로 interactive guard 우회.
-
-### 5. API key 만료 (Google 자동 회수)
-→ 채팅이나 공개 위치에 키 노출 시 자동 만료. 반드시 새 키 발급 후 bashrc 갱신.
+### 3. `Argument list too long`
+→ code review prompt 가 ARG_MAX 초과. `--prompt-file` 패턴 사용 (step5 Codex 리뷰 호출 시).
 
 ## 🪟 Interactive Command Policy (필수 준수)
 
@@ -128,13 +116,13 @@ bash "$SKILL/core/run-interactive.sh" "📦 unzip 설치" "sudo apt update && su
 
 ### 적용 범위
 
-- `/harness-setup` 자체 (Codex/Gemini CLI 설치는 sudo 불필요라 inline OK, 그 외는 별창)
-- `harness` skill의 모든 단계 (Step 0~Phase 5)
+- `/harness-setup` 자체 (Codex CLI 설치는 sudo 불필요라 inline OK, 그 외는 별창)
+- `harness` skill의 모든 step (step1~complete)
 - 다른 슬래시 커맨드에서도 동일 정책 권장
 
 ## GitHub 버전 확인 / 업데이트
 
-`/harness-setup` 호출 시 9/9 통과하면 자동으로 다음 정보 출력 중 하나:
+`/harness-setup` 호출 시 모든 항목 통과하면 자동으로 다음 정보 출력 중 하나:
 
 ```
 ✅ Harness 최신 (SHA: abc1234)
@@ -165,4 +153,4 @@ bash "$SKILL/core/run-interactive.sh" "📦 unzip 설치" "sudo apt update && su
 - **마스터 doctor 스크립트**: `~/.claude/skills/harness/core/harness-doctor.sh`
 - **Interactive 헬퍼**: `~/.claude/skills/harness/core/run-interactive.sh`
 - **상세 셋업 가이드**: `~/.claude/skills/harness/docs/setup.md`
-- **`/harness` skill**: 워크플로우 시작 (Step 0에서 doctor 자동 호출)
+- **`/harness` skill**: 워크플로우 시작 (step1 초기화에서 doctor 자동 호출)

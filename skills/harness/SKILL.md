@@ -246,18 +246,48 @@ wsl -e bash -lc '
 
 ### Phase 1.0: Initial Draft
 
-1. 요청 분석 → phase 분해
-2. **Write 도구로** `<PROJECT_ROOT>/.harness/plans/plan-<id>.md` v1 작성
-3. 작성 중 외부 정보 필요 시 → Gemini Research 호출 (아래 참고)
-4. frontmatter `status: self-review` → Phase 1.1
+**우선 `harness-planner` agent 위임 (Learning Protocol 적용)**.
 
-### Phase 1.1: Self-Review (10-point)
+a. **prior learning 로드**: 두 경로를 Read (없으면 빈 문자열):
+   - 공용: `~/.claude/skills/harness/agents/learning/harness-planner.md`
+   - 프로젝트: `<PROJECT>/.harness/agents/learning/harness-planner.md`
+   둘을 머지 (프로젝트가 공용을 덮어쓰기). 5섹션 (Principles/Patterns/Anti-patterns/Project-Specific/Open Questions) 그대로 유지.
 
-체크리스트 평가 → plan.md의 "Self-Review Result" 섹션에 저장.
+b. **Task 도구로 호출** (`subagent_type: harness-planner`):
+   - prompt 앞에 `## Prior Learning\n<merged content>\n\n## 본 작업\n<원 요청>` 형태로 prepend.
+   - prepend 가 비어도(처음 호출) 빈 섹션 그대로 둠 — 형식 일관성.
 
-분기:
-- ❌ 1+ → Phase 1.4 (auto-revision)
-- ⚠️ 만 → Phase 1.2 진행
+c. **Learning Proposals 처리**: agent 응답 끝에 `## Learning Proposals` 있으면:
+   - 검증 게이트 (아래 "Learning Proposal Validation Gate" 절 참조).
+   - 통과 시 Edit 으로 learning 파일 갱신 (공용/프로젝트 중 적절한 쪽). 일반 원칙은 공용, 프로젝트 컨벤션은 프로젝트.
+   - 변경 diff 를 progress-<id>.md `learning_updates` 섹션에 기록 (audit trail).
+
+d. plan 본문은 `<PROJECT_ROOT>/.harness/plans/plan-<id>.md` v1 으로 Write. frontmatter `status: self-review` → Phase 1.1.
+
+**Gemini Research 호출**: 작성 중 외부 정보 필요 시 자유롭게.
+
+**Fallback**: agent 호출 실패 시 메인 Claude 가 직접 plan 작성. learning 갱신은 다음 호출 때.
+
+### Phase 1.1: Self-Review (10-point + Agent 3-way 병렬)
+
+**메인 Claude 의 10-point 체크리스트 + 3개 agent 병렬 호출 조합.**
+
+a. 메인 Claude 10-point 체크 → plan.md의 "Self-Review Result" 섹션에 저장 (기존 동작).
+
+b. **병렬 agent 검토 (한 메시지에서 동시 호출)**:
+   - `harness-architect` — 시스템 차원 결함
+   - `harness-code-reviewer` — plan 의 구현 디테일 점검 (코드는 아직 없으므로 plan 자체)
+   - `harness-security-reviewer` — 보안 위험
+   각 agent 에 Prior Learning prepend + Learning Proposals 수거 (Phase 1.0 b/c 와 동일 절차).
+
+c. 3개 결과 통합:
+   - CRITICAL/HIGH 1+ → Phase 1.4 (auto-revision)
+   - MEDIUM 만 → Phase 1.2 진행 + 결과 plan.md 에 부록 저장
+   - 모두 PASS → Phase 1.2
+
+분기 (기존 + 보강):
+- ❌ 1+ (메인 10-point) 또는 agent CRITICAL/HIGH → Phase 1.4 (auto-revision)
+- ⚠️ + agent MEDIUM → Phase 1.2 진행
 - 모두 ✅ → Phase 1.2
 
 ### Phase 1.2: Codex Critique — 🚨 MANDATORY EXECUTION 🚨
@@ -458,11 +488,20 @@ Read tool: <PROJECT_ROOT>/.harness/plans/plan-<id>.md
 ## Phase 3: Implement
 
 1. progress.md 갱신: `current_phase: 3`
-2. Edit/Write로 직접 구현
-3. **막힐 때마다 Gemini Research 호출** (자유롭게)
-4. 변경 후 progress.md `files_created`/`files_modified` 갱신
-5. plan.md Phase 3 체크리스트 체크
-6. → Phase 4
+2. **TDD 요구되면** `harness-tdd-guide` agent 위임 (Learning Protocol 적용).
+   - plan 또는 사용자 요청에 "TDD" / "테스트 먼저" / "테스트 커버리지" 명시되면 자동 호출.
+   - 그 외에는 메인 Claude 가 직접 Edit/Write.
+3. Edit/Write로 구현
+4. **빌드/타입체크/린트 실패 발생 시** → `harness-build-resolver` agent 자동 호출 (Learning Protocol 적용).
+   - 1회 실패 즉시 위임. 사용자에게 매번 묻지 않음 (Rule 12 자율 결정).
+   - 3회 연속 실패 시 사용자에게 보고.
+5. **막힐 때마다 Gemini Research 호출** (자유롭게)
+6. 변경 후 progress.md `files_created`/`files_modified` 갱신
+7. plan.md Phase 3 체크리스트 체크
+8. **commit 직전 보안 게이트**: `harness-security-reviewer` agent 호출. verdict=BLOCK 이면 commit 금지 + 사용자 보고.
+9. → Phase 4
+
+**Learning Proposals 수거**: 위 2/4/8 의 agent 호출마다 응답 끝의 Learning Proposals 를 검증 게이트 통과시켜 learning 파일 갱신.
 
 ### 🚨 주석 작성 지침 (Comment Policy)
 
@@ -549,9 +588,9 @@ while ITER <= 3:
         - 0 → review-<id>-iter-<ITER>.md에 저장 (Write 도구), review_method: codex
         - 2 → **중단**. wrapper가 로그인 창 띄움. 사용자 로그인 완료까지 대기.
               "완료" 입력 후 Step 4.2 재시도. fallback 금지.
-        - 3 → Claude code-reviewer agent로 fallback (Task 도구), review_method: claude
+        - 3 → `harness-code-reviewer` agent fallback (Task 도구, Learning Protocol 적용), review_method: claude
         - 4 → Codex CLI 내부 subprocess 에러. 사용자에게 원인 보고 + Codex CLI
-              업데이트 권장. Claude code-reviewer agent로 fallback,
+              업데이트 권장. `harness-code-reviewer` agent fallback,
               review_method: claude-codex-internal-error
     Step 4.4: 🚨 검증 게이트: Read review-...iter-<ITER>.md 확인. 비어있으면 STOP.
     Step 4.5: LGTM 파싱:
@@ -760,6 +799,76 @@ in_progress 작업들 리스트.
 | Result | `result-<REQUEST_ID>.md` |
 
 REQUEST_ID: `YYYYMMDD-HHMMSS-<slug>`
+
+---
+
+## 🧠 Agent Learning Protocol (진화하는 agent 구조)
+
+harness 는 6개 전용 agent (`harness-planner`, `harness-architect`, `harness-code-reviewer`, `harness-security-reviewer`, `harness-tdd-guide`, `harness-build-resolver`) 가 작업하며 학습을 축적한다. 학습은 마스터·프로젝트 두 곳에 저장되고 다음 호출 때 자동 참조된다.
+
+### 저장 위치 (Hybrid)
+
+| 종류 | 경로 | 용도 |
+|------|------|------|
+| 공용 | `~/.claude/skills/harness/agents/learning/<agent>.md` | 모든 프로젝트 공유, 일반 원칙 |
+| 프로젝트 | `<PROJECT>/.harness/agents/learning/<agent>.md` | 그 프로젝트 한정 컨벤션 |
+
+로드 순서: 공용 먼저 → 프로젝트가 덮어쓰기. 메인 Claude 가 머지한 결과를 agent prompt 앞에 `## Prior Learning` 으로 prepend.
+
+### Agent 호출 표준 절차
+
+agent 를 부를 때마다 메인 Claude 가:
+
+1. **공용 learning Read**: `~/.claude/skills/harness/agents/learning/<agent>.md` (없으면 빈 문자열).
+2. **프로젝트 learning Read**: `<PROJECT>/.harness/agents/learning/<agent>.md` (없으면 빈 문자열). 디렉토리 없으면 `mkdir -p` (Rule 12 자율).
+3. **머지**: 두 파일을 섹션별로 합치되 같은 entry 중복 제거. 결과 길이 800줄 초과 시 prepend 직전 경고.
+4. **prepend**: Task prompt 의 맨 앞에 다음 형식:
+   ```
+   ## Prior Learning
+   <merged content>
+
+   ## 본 작업
+   <원 요청>
+   ```
+5. **agent 호출** (Task 도구, `subagent_type: harness-*`).
+6. **Learning Proposals 수거**: 응답 끝의 `## Learning Proposals` 추출.
+7. **검증 게이트** 통과 → learning 파일 갱신.
+8. **audit**: progress-<id>.md 의 `learning_updates` 섹션에 변경 diff 기록.
+
+### Learning Proposal Validation Gate
+
+agent 가 제안한 add/update/delete 를 적용하기 전 메인 Claude 의 검증:
+
+| 체크 | 통과 조건 | 실패 시 |
+|------|----------|---------|
+| **중복** | 동일 entry 가 이미 없음 (grep) | 제안 무시, 진행 |
+| **형식** | `[YYYY-MM-DD]` 태그 + 5섹션 중 하나 | 보강 후 재시도 또는 무시 |
+| **민감 정보** | secret/password/token/내부URL/회사명 패턴 없음 | **즉시 차단**, 사용자에게 보고 |
+| **사이즈** | 갱신 후 800줄 이하 | 갱신은 하되 `/harness-distill <agent>` 권고 메시지 |
+| **모순** | 기존 Principles/Patterns 와 정면 충돌 없음 | Codex critique 1회 호출로 판정 → 충돌이면 사용자 결정 |
+
+검증 통과 시 Edit 도구로 learning 파일 갱신. 어떤 entry 가 들어갔는지 메인 응답에도 1줄 보고.
+
+### Agent 별 호출 지점 매트릭스
+
+| Phase | Agent | 강제? | Fallback |
+|-------|-------|-------|----------|
+| 1.0 | harness-planner | 권장 | 실패 시 메인 Claude 직접 |
+| 1.1 | harness-architect / -code-reviewer / -security-reviewer (병렬) | 권장 | 메인 10-point 만 |
+| 3 (TDD 요청 시) | harness-tdd-guide | 권장 | 메인 Claude 직접 |
+| 3 (빌드 실패 시) | harness-build-resolver | 자동 | 메인 Claude 직접 |
+| 3 (commit 직전) | harness-security-reviewer | 자동 | 스킵 + WARN |
+| 4 (Codex exit 3/4) | harness-code-reviewer | 자동 (기존 fallback 대체) | code-reviewer (ECC 글로벌) |
+
+### Distillation
+
+learning 파일 800줄 초과 시 또는 사용자 명시 시 `/harness-distill <agent>` 실행 → 카테고리별 통합·압축. 상세는 `commands/harness-distill.md`.
+
+### 민감 정보 보호
+
+- 공용 learning 은 HarnessRepo 에 push → 외부 공개됨. 비밀번호/내부 URL/회사명 절대 금지.
+- 프로젝트 learning 은 `.gitignore` 로 push 제외. 그래도 entry 작성 시 민감 정보 회피 원칙.
+- `harness-security-reviewer` 는 자기 learning 에 secret 자체 금지 (정의 파일에 명시됨).
 
 ---
 

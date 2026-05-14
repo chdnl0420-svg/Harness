@@ -44,21 +44,46 @@ WRAPPER_DIR="$(cd "$(dirname "$0")" && pwd)"
 # credentials 동기화 (있으면)
 [ -f "$CORE_DIR/sync-creds.sh" ] && bash "$CORE_DIR/sync-creds.sh" 2>/dev/null
 
-# ===== 모드 파싱 =====
+# ===== 인자 파싱 (--mode, --prompt-file 자유 순서) =====
 MODE="code"
-if [ "${1:-}" = "--mode" ]; then
-    MODE="${2:-code}"
-    shift 2
-fi
+PROMPT_FILE_ARG=""
+while [ $# -gt 0 ]; do
+    case "${1:-}" in
+        --mode)
+            MODE="${2:-code}"
+            shift 2
+            ;;
+        --prompt-file)
+            PROMPT_FILE_ARG="${2:-}"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
-# ===== 입력 =====
-if [ -n "${1:-}" ]; then
+# ===== 입력 (우선순위: --prompt-file > $1 인자 > stdin) =====
+# 대용량 prompt 는 ARG_MAX (Linux 보통 ~128KB, WSL 경계는 더 작음) 회피용으로
+# --prompt-file 사용 권장.
+if [ -n "$PROMPT_FILE_ARG" ]; then
+    if [ ! -f "$PROMPT_FILE_ARG" ]; then
+        echo "❌ --prompt-file 경로 없음: $PROMPT_FILE_ARG" >&2
+        exit 1
+    fi
+    INPUT=$(cat "$PROMPT_FILE_ARG")
+elif [ -n "${1:-}" ]; then
     INPUT="$1"
 else
     INPUT=$(cat)
 fi
 if [ -z "$INPUT" ]; then
-    echo "Usage: $0 [--mode code|plan-critique] <content>" >&2
+    echo "Usage: $0 [--mode code|plan-critique] [--prompt-file <file>] [<content>]" >&2
+    echo "       대용량 prompt 는 --prompt-file 사용 권장 (ARG_MAX 회피)" >&2
     exit 1
 fi
 
@@ -163,7 +188,20 @@ START_TS=$(date +%s)
 START_HUMAN=$(date '+%Y-%m-%d %H:%M:%S')
 
 # ===== git repo 자동 보장 (대화형 codex 요구) =====
-if [ ! -d "$PROJECT_DIR/.git" ]; then
+# 일반 repo: .git 디렉토리, worktree: .git 파일(gitdir 포인터) — 둘 다 인정
+IS_GIT_REPO=0
+WORKTREE_GITDIR=""
+if [ -e "$PROJECT_DIR/.git" ]; then
+    IS_GIT_REPO=1
+    if [ -f "$PROJECT_DIR/.git" ]; then
+        # worktree: .git 파일에서 실제 gitdir 추출
+        WORKTREE_GITDIR=$(sed -n 's/^gitdir: //p' "$PROJECT_DIR/.git" 2>/dev/null | head -1)
+    fi
+elif (cd "$PROJECT_DIR" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
+    IS_GIT_REPO=1
+fi
+
+if [ "$IS_GIT_REPO" = "0" ]; then
     echo "ℹ️  $PROJECT_DIR 는 git repo가 아닙니다. 자동 git init..." >&2
     (cd "$PROJECT_DIR" && git init -q -b main 2>&1 | sed 's/^/   /' >&2) || {
         echo "❌ git init 실패. 권한 또는 디렉토리 확인." >&2
@@ -203,9 +241,12 @@ sed -i "s|__PROJECT__|$PROJECT_DIR|g" "$INNER"
 chmod +x "$INNER"
 
 # ===== 시작 마커 =====
+PROJECT_DISPLAY="$PROJECT_DIR"
+[ -n "$WORKTREE_GITDIR" ] && PROJECT_DISPLAY="$PROJECT_DIR  (worktree → $WORKTREE_GITDIR)"
 {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🤖 Codex TUI — mode: ${MODE}"
+    echo "📂 PROJECT_DIR: ${PROJECT_DISPLAY}"
     echo "📤 요청 길이: ${INPUT_LEN} chars (+ system prompt + sentinel suffix = ${PROMPT_LEN} chars)"
     echo "📺 tmux session: $SESSION_NAME"
     echo "🎯 sentinel: $SENTINEL"

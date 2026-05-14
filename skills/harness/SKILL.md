@@ -41,6 +41,8 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" "<title>" "<command>
 
 **가정**: Claude Code Bash 도구 (Windows에서는 Git Bash) 환경. PowerShell에서 직접 실행은 별도 지원 필요.
 
+**Git worktree 지원**: `git worktree add` 로 만든 워크트리에서도 정상 동작. wrapper 는 `.git` 이 디렉토리(일반 repo)든 파일(worktree gitdir 포인터)든 모두 인식. 별창 헤더에 `(worktree → <gitdir>)` 로 표시되어 디버깅 가능. Codex 는 워크트리 폴더 안에서 `-C` 로 시작하므로 sentinel 쓰기/파일 읽기 모두 워크트리 안에서 일어남.
+
 ### 아키텍처: 마스터 + 프로젝트 복제
 
 - **마스터** (skill 폴더 안): `~/.claude/skills/harness/{wrappers,core}/` — source of truth, 배포 단위

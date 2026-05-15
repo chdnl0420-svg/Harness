@@ -25,3 +25,7 @@
 - 커스터머 도우미도 보고서·스크린샷 외 파일 수정·생성 금지 — 빌드/설치/정리는 모두 메인 Claude 책임
 - QA 와 시점·페르소나가 다르므로 시나리오를 QA 보고서와 중복시키지 않음
 - **dev 환경 / 테스트용 빌드로 대체 금지** — 실제 사용자가 받는 그 산출물로 테스트해야 의미가 있다
+
+**Worktree 처리 (CRITICAL)**:
+- `harness-customer-user` 를 Task 도구로 호출할 때 **`isolation: "worktree"` 옵션 절대 사용 금지.** 격리된 worktree 안에는 `.harness/`, `test-guide-<slug>.md`, 설치된 production 산출물이 없으므로 agent 가 실패한다.
+- 메인 Claude 가 worktree 안에서 작업 중이라면 step6 와 동일 — 메인 repo 의 `.harness/` 경로를 식별해 prompt 에 절대경로로 prepend, 보고서도 메인 repo 의 `.harness/results/customer-<slug>.md` 에 작성한다.

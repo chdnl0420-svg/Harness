@@ -1,6 +1,6 @@
 ---
 name: harness-plan
-description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬. AskUserQuestion 으로 사용자 의도를 카테고리별로 직접 묻고, 필요 시 외부 리서치를 메인 Claude 가 직접 수행한 뒤, 모은 입력을 바탕으로 plan-readability 규칙을 지키는 도메인 설계 초안을 만든다. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
+description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬. AskUserQuestion 으로 사용자 의도를 카테고리별로 직접 묻고, 필요 시 외부 리서치를 `harness-deep-researcher` 에 위임 (`--noagent` 모드면 메인 Claude 직접) 한 뒤, 모은 입력을 바탕으로 plan-readability 규칙을 지키는 도메인 설계 초안을 만든다. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
 ---
 
 # harness-plan
@@ -30,7 +30,7 @@ description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬.
 ## 절차 (CRITICAL — 순서 엄수)
 
 ### Phase 1. 사용자 인터랙티브 질의 (필수 게이트)
-
+CRITICAL: 사용자가 요청한 내용을 실제 완료 할 수 있는 계획을 세워야함. 중간 단계까지만 계획 세우기 절대 금지.
 CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 진행 금지. 한 번에 묻는 질문 1~4개, 선택지 2~4개씩. 사용자가 자유 답변하고 싶으면 "Other" 옵션으로 입력.
 
 다음 6개 카테고리를 사용자가 답할 때까지 **순차** 진행한다. 한 번에 다 묻지 말고 카테고리별로 끊어 묻는다 (질문 화면 가독성).
@@ -52,12 +52,39 @@ CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 
 - 메인 컨텍스트에 카테고리별로 누적.
 - 답변이 5문항을 넘거나 길어지면 `.harness/research/answers-<slug>.md` 에 저장하고, 메인엔 한두 줄 요약만 남긴다 (컨텍스트 절약).
 
-### Phase 2. (필요 시) 외부 리서치 — 메인 Claude 직접 수행
+### Phase 2. (필요 시) 외부 리서치 — `harness-deep-researcher` 위임
 
-- 서브에이전트 위임 **금지**. WebSearch / WebFetch / 라이브러리 문서 조회 등 메인 도구만 사용.
-- 라이브러리 비교·current trends·보안 권장사항·API 사용법 등 외부 정보가 필요할 때만 수행.
-- 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록 (스킵 금지).
-- 결과는 즉시 `.harness/research/research-<slug>-<NN>-<topic>.md` 파일로 저장. 주제·조회 소스·핵심 발견·도메인 설계에 미친 영향을 정리. 메인 컨텍스트에는 요약만 남기고 본문 인용은 파일 경로로 (예: *"API rate limit 기준은 research-<slug>-01-rate-limit.md 참고"*).
+외부 정보가 필요하면 **`harness-deep-researcher`** 에 Task 위임. 필요 판정 기준 (다음 중 하나라도 해당하면 리서치 실시):
+- 라이브러리·프레임워크 비교 또는 선택
+- 최신 모범 사례 · current trends (학습 데이터 cutoff 이후 변경 가능 영역)
+- 보안 권고 (OWASP / NIST / CVE)
+- API 사용법 · 마이그레이션 영향 (vendor 공식 docs 확인 필요)
+- Phase 1 답변에 *"조사 필요"* 가 명시된 항목
+- 사용자가 명시적으로 "조사 / 비교 / 확인" 요청
+
+**기본 경로 (subagent 위임)** — `.harness/.noagent` 가 **없을 때**:
+- `Task` 도구로 `subagent_type="harness-deep-researcher"` 호출.
+- prompt 에 4개 필드 명시:
+  ```
+  Topic: <조사 주제>
+  Tier: light | standard | deep
+  Context: <도메인 / 기술 스택 / 결정 영향 범위>
+  조사 일자: YYYY-MM-DD
+  ```
+- 메인 Claude 는 도우미 응답을 받아 `.harness/research/research-<slug>-<NN>-<topic>.md` 에 **저장** — 응답의 *Summary · Key Findings · Sources Consulted · Search Trail · Stop reason* 그대로 보존 + 1줄 헤더 (주제, 일자, 호출자 메모).
+- 메인 컨텍스트엔 *"리서치 결과: research-<slug>-<NN>-<topic>.md 참고"* 한 줄 + HIGH confidence Key Findings 만 prepend.
+
+**Fallback 경로 (--noagent)** — `.harness/.noagent` 가 **있을 때**:
+- Task 위임 금지. 메인 Claude 가 직접 WebSearch / WebFetch / 라이브러리 docs 조회.
+- 단, harness-deep-researcher 의 환각 차단 4규칙은 동일 적용:
+  1. No citation = no claim
+  2. No paraphrasing from training data
+  3. No fabricated URLs (WebFetch 실패한 URL 인용 금지)
+  4. 검증 없는 추론은 *"Inferred:"* 로 분리
+- 결과 저장 경로·양식은 위와 동일.
+
+리서치 불필요 판단:
+- 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록 (스킵 금지). 결과 파일도 만들지 않는다.
 
 ### Phase 3. 도메인 설계 초안 작성
 

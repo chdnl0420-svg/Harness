@@ -1,19 +1,22 @@
-# Harness — Iterative Multi-LLM Development Workflow for Claude Code
+# Harness — Step-Based Multi-Agent Development Workflow for Claude Code
 
-> Claude · Codex · Gemini를 **하나의 워크플로우**로 묶어 계획·리뷰·구현을 자동화하는 Claude Code skill.
+> Claude · Codex 를 **하나의 워크플로우**로 묶어 도메인 설계·구현·리뷰·QA·커스터머 테스트를 자동화하는 Claude Code skill.
 
-`/harness <task>` 한 번 호출로 **Plan → Codex critique → (필요시) Gemini research → Implement → Codex review → Complete** 전 과정을 진행하고, 모든 산출물을 `<project>/.harness/` 아래 마크다운으로 보존합니다.
+`/harness <task>` 한 번 호출로 **step1 (초기화) → step2 (도메인) → step3 (구현 계획) → step4 (구현) → step5 (Codex 리뷰) → step6 (QA) → step7 (커스터머 테스트, production 설치본) → step8 (commit) → complete** 전 과정을 진행하고, 모든 산출물을 `<project>/.harness/` 아래 마크다운으로 보존합니다.
 
 ---
 
 ## ✨ 무엇이 다른가
 
-- **Plan-first**: Codex(GPT-5)가 구현 전 plan을 critique. 자명한 누락·위험을 잡아냄.
-- **Codex가 코드 리뷰**: 구현 후 Codex가 LGTM/이슈 분석. NO면 자동 재구현 루프.
-- **Gemini는 on-demand**: 라이브러리 비교·최신 벤치마크 등 외부 정보가 필요할 때만.
-- **모든 산출물 영구 보존**: `.harness/{plans,research,reviews,improvements,results}/` 에 mdfile. PR/audit/resume 가능.
-- **별창 모드**: 외부 LLM 호출을 새 Windows Terminal 창에서 실시간 stream 표시. (옵션)
-- **fail-fast 정책**: 인증 실패(exit 2) → 즉시 중단 + 로그인 창 / Quota 소진(exit 3) → Claude fallback.
+- **Step 기반 워크플로우**: step1~complete 까지 step 자체 규칙(워크플로우 다이어그램의 조건 분기)에 의한 것이 아니면 **어떤 step 도 스킵·통합·무시 금지**. 실수로 빠지는 단계 없음.
+- **Plan-first**: step2 에서 `plan` skill 로 도메인 설계 → Codex critique → 사용자 승인. 자명한 누락·위험을 잡아냄.
+- **Codex 가 코드 리뷰**: step5 에서 Codex 가 LGTM/이슈 분석. LGTM:NO 면 **반드시 step3 (구현 계획 수정) 로 되돌아감** (리뷰는 직접 수정 권한 없음).
+- **QA + 일반인 시점 검증 2단**: step6 `harness-qa-engineer` 가 사양 일치 QA (스크린샷+클릭) → step7 `harness-customer-user` 가 **실제 production 설치본** 으로 일반인 시점 테스트.
+- **토큰 절감 기본 모드**: step2/step3/step5(fallback)/step8 은 메인 Claude 의 skill 호출(plan, code-review 등). step6/step7 만 페르소나 가치 위해 subagent 유지.
+- **`--noagent` 옵션**: `/harness --noagent <task>` → 모든 harness-* subagent 호출 비활성. skill·메인 Claude 직접으로 진행 (페르소나 가치는 잃지만 토큰 추가 절감).
+- **리서치는 메인 Claude 직접**: 외부 정보 필요 시 WebSearch/WebFetch 등으로 직접 조사, 결과는 `.harness/research/research-<slug>-<NN>-<topic>.md` 로 파일 저장.
+- **모든 산출물 영구 보존**: `.harness/` 아래 mdfile. PR/audit/resume 가능. 학습 데이터는 `.gitignore` 권장.
+- **fail-fast 정책**: Codex 인증 실패(exit 2) → 즉시 중단 + 로그인 창. Quota 소진(exit 3) → `code-review` skill fallback.
 
 ---
 
@@ -30,8 +33,7 @@
 | 5 | Node ≥ 20 | 필수 | 가이드 (nvm install) |
 | 6 | Codex CLI (`@openai/codex`) | 필수 | ✅ 자동 |
 | 7 | Codex 로그인 | 필수 | 가이드 (interactive) |
-| 8 | Gemini CLI (`@google/gemini-cli`) | 필수 | ✅ 자동 |
-| 9 | Gemini API key | 필수 | 가이드 (aistudio.google.com) |
+| 8 | Agent learning 구조 (harness-* agents + learning + templates) | 필수 | ✅ 자동 |
 
 > macOS/Linux 네이티브는 현재 미지원. WSL 안에서만 동작.
 
@@ -62,8 +64,9 @@ $src = Get-ChildItem $tmp -Directory | Select-Object -First 1
 
 New-Item -ItemType Directory -Force -Path "$claude\skills","$claude\commands" | Out-Null
 Copy-Item -Path "$($src.FullName)\skills\harness" -Destination "$claude\skills\" -Recurse -Force
-Copy-Item -Path "$($src.FullName)\commands\harness-setup.md" -Destination "$claude\commands\" -Force
-Copy-Item -Path "$($src.FullName)\commands\harness-review.md" -Destination "$claude\commands\" -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path "$($src.FullName)\commands\harness-*.md" | ForEach-Object {
+  Copy-Item -Path $_.FullName -Destination "$claude\commands\" -Force
+}
 
 try {
   $commit = (Invoke-RestMethod -Uri "https://api.github.com/repos/chdnl0420-svg/Harness/commits/main" -UseBasicParsing).sha
@@ -82,7 +85,7 @@ Remove-Item -Path $zip,$tmp -Recurse -Force -ErrorAction SilentlyContinue
 **설치 후 다음 단계**:
 1. 재부팅
 2. Claude Code 재시작
-3. Claude Code 에서 `/harness-setup` → 9개 prereq 검진. 누락 항목은 화면 안내대로 처리.
+3. Claude Code 에서 `/harness-setup` → 8 개 prereq 검진. 누락 항목은 화면 안내대로 처리.
 
 **필요 조건**: PowerShell 5.0+ (Windows 10/11 기본 포함) + 인터넷. git/WSL 없어도 됨.
 
@@ -96,8 +99,7 @@ W=$(cmd.exe /c "echo %USERNAME%" | tr -d '\r\n') && \
 SKILL="/mnt/c/Users/$W/.claude/skills/harness" && \
 mkdir -p "/mnt/c/Users/$W/.claude/skills" "/mnt/c/Users/$W/.claude/commands" && \
 cp -r /tmp/h/skills/harness "/mnt/c/Users/$W/.claude/skills/" && \
-cp /tmp/h/commands/harness-setup.md /tmp/h/commands/harness-review.md \
-   "/mnt/c/Users/$W/.claude/commands/" 2>/dev/null && \
+cp /tmp/h/commands/harness-*.md "/mnt/c/Users/$W/.claude/commands/" 2>/dev/null && \
 chmod +x "$SKILL"/{core,wrappers}/*.sh && \
 SHA=$(git -C /tmp/h rev-parse HEAD) && \
 printf 'commit: %s\ninstalled: %s\nsource: https://github.com/chdnl0420-svg/Harness\nbranch: main\n' \
@@ -111,8 +113,8 @@ echo "✅ 설치 완료 (SHA: ${SHA:0:7})"
 저장소 clone 또는 ZIP 다운로드 후:
 ```
 clone한 디렉토리/
-├── skills/harness/           → %USERPROFILE%\.claude\skills\harness\
-└── commands/harness-setup.md → %USERPROFILE%\.claude\commands\harness-setup.md
+├── skills/harness/        → %USERPROFILE%\.claude\skills\harness\
+└── commands/harness-*.md  → %USERPROFILE%\.claude\commands\
 ```
 
 ---
@@ -127,26 +129,11 @@ clone한 디렉토리/
 
 2. **Claude Code 재시작** (skill 목록 갱신).
 
-3. **Claude Code에서**:
+3. **Claude Code 에서**:
    ```
    /harness-setup
    ```
-   → 9/9 ✅ 통과해야 사용 가능. 누락 항목(Codex 로그인, Gemini API key 등)은 화면 안내대로 처리.
-
-### Gemini API key 빠른 등록 (한 줄)
-
-[aistudio.google.com/apikey](https://aistudio.google.com/apikey) 에서 키 발급 후, **WSL 터미널**에 아래 줄을 붙여넣고 따옴표 안만 실제 키로 교체:
-
-```bash
-bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙여넣기"
-```
-
-→ 자동으로:
-- 형식 검증 (`AIzaSy` 시작 + 39자)
-- `~/.bashrc` 백업 후 안전하게 갱신 (기존 라인 교체 또는 새로 추가)
-- 현재 셸에도 즉시 export 적용 (다음 호출부터 사용 가능)
-
-확인: Claude Code에서 `/harness-setup` 다시 실행 → `[9/9] Gemini API key ✅`
+   → 모든 항목 ✅ 통과해야 사용 가능. 누락 항목(Codex 로그인 등)은 화면 안내대로 처리.
 
 ---
 
@@ -155,10 +142,12 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 ### 새 워크플로우 시작
 ```
 /harness <자연어 요청>
+/harness --noagent <자연어 요청>     # subagent 호출 전부 비활성 (토큰 절감 모드)
 ```
+
 예시:
 - `/harness "OWASP 2025 권장값으로 Argon2id 패스워드 해시 함수 추가"`
-- `/harness "Bun과 Node 22 cold start 비교 후 더 빠른 런타임으로 greet CLI"`
+- `/harness --noagent "src/util/discount.js 에 discount(price, percent) 추가, percent 0~100 검증"`
 
 ### 그 외 명령
 | 명령 | 동작 |
@@ -169,167 +158,104 @@ bash ~/.claude/skills/harness/core/setup-gemini-key.sh "AIzaSy_여기에_키_붙
 | `/harness sync` | 마스터 wrapper → 프로젝트 `.harness/` 동기화 |
 | `/harness-setup` | 의존성 검진 + npm 자동 설치 + **GitHub 버전 자동 확인** |
 | `/harness-setup --update` | GitHub 최신으로 즉시 업데이트 (백업 자동 생성) |
-| `/harness-review` | Codex로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
+| `/harness-review` | Codex 로 즉석 리뷰 (자연어로 파일·focus 자동 해석) |
+| `/harness-help` | 전체 도움말 (워크플로우, agent, 폴더 구조 등) |
+| `/harness-spec` | 프로젝트 사양 문서 (PRD/ARCHITECTURE/ADR/UI_GUIDE) + CLAUDE.md 작성 |
+| `/harness-audit` | repo health 점수표 |
+| `/harness-distill` | agent learning 파일 정리·압축 |
 
 ### 환경변수
 
 | 변수 | 기본값 | 용도 |
 |------|--------|------|
-| `HARNESS_IDLE_LIMIT` | `180` | Codex/Gemini 무응답 N초 시 abort. **idle은 tmux pane content hash 변화로 판정** (Codex TUI spinner/token-count 갱신도 활동으로 인식). **`0` 설정 시 idle 검사 자체 비활성** (HARD_LIMIT만 적용) |
+| `HARNESS_IDLE_LIMIT` | `180` | Codex 무응답 N 초 시 abort. tmux pane content hash 변화로 idle 판정. **`0` 설정 시 idle 검사 비활성** (HARD_LIMIT 만 적용) |
 | `HARNESS_HARD_LIMIT` | `3600` | runaway 안전망 (절대 상한, 1시간) |
-| `HARNESS_WAIT_LIMIT` | (deprecated) | 설정 시 `HARNESS_HARD_LIMIT`으로 매핑 (하위호환) |
-| `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 tmux attach 별창 비활성 (Codex는 여전히 tmux detached로 실행되지만 사용자에게 안 보임) |
-| `HARNESS_TMUX_READY_TIMEOUT` | `30` | Codex TUI 로딩 대기 한도(초). 캡처에서 prompt 라인 감지로 ready 판정 |
-| `HARNESS_LARGE_PROMPT_BYTES` | `10240` | (legacy, 현재는 무관 — 항상 `tmux load-buffer + paste-buffer` 사용) |
+| `HARNESS_WAIT_LIMIT` | (deprecated) | 설정 시 `HARNESS_HARD_LIMIT` 으로 매핑 (하위호환) |
+| `HARNESS_NO_VISIBLE` | (unset) | `1` 설정 시 tmux attach 별창 비활성 |
+| `HARNESS_TMUX_READY_TIMEOUT` | `30` | Codex TUI 로딩 대기 한도(초) |
+| `HARNESS_LARGE_PROMPT_BYTES` | `10240` | (legacy, 항상 `tmux load-buffer + paste-buffer` 사용) |
 | `HARNESS_MAX_ONBOARDING_ENTER` | `3` | Codex 첫 사용 시 onboarding 화면 감지 시 자동 Enter 주입 최대 횟수 |
-| `HARNESS_GEMINI_MODEL` | (auto) | Gemini CLI 모델 override (예: `gemini-3-flash-preview`) |
 | `HARNESS_SKIP_DRIFT_CHECK` | (unset) | `1` 설정 시 drift 검사 skip (CI/자동화) |
 | `HARNESS_REPO_URL` | (default) | 업데이트 대상 GitHub URL override |
 | `HARNESS_REPO_API` | (default) | 업데이트 대상 GitHub API URL override |
-
-**중요**: `HARNESS_IDLE_LIMIT`이 wall-clock 타임아웃을 대체합니다. Codex가 깊은 코드 분석/도구 호출로 5-10분씩 작업해도 stdout으로 reasoning 로그가 계속 흐르면 멈추지 않고 끝까지 기다림. 진짜 hang(N초 동안 0 byte도 안 늘어남)일 때만 abort.
-
-### Codex 호출 메커니즘 (TUI + sentinel)
-
-기존 `codex exec` 비대화 호출은 큰 repo + 다중 subprocess 환경에서 `codex_core::tools::router stdin closed` 버그를 자주 일으켜, 현재 wrapper는 **대화형 TUI + sentinel 파일** 방식 사용:
-
-```
-[harness wrapper]
-   │
-   ├─ tmux new-session -d -s NAME 'bash $INNER'  ──→  [tmux session]
-   │                                                       │
-   │                                                       └─ codex (interactive TUI, --sandbox workspace-write)
-   │                                                              ▲
-   ├─ wt.exe new-tab wsl tmux attach            ──→  [별창에서 사용자가 TUI 봄 (optional)]
-   │
-   ├─ TUI 로딩 감지 (capture-pane polling)
-   ├─ tmux load-buffer + paste-buffer            ──→  prompt를 input box에 한 덩어리로 paste
-   ├─ tmux send-keys Enter                       ──→  submit
-   │
-   └─ 폴링 (2초 주기):
-       ├─ sentinel 파일 존재 + <<<HARNESS-DONE>>> 마커 → 본문 추출, exit 0
-       ├─ tmux pane 종료 (sentinel 없음) → capture fallback, exit 1
-       ├─ codex_core::tools::router error → exit 4
-       ├─ auth 실패 패턴 → exit 2 + 로그인 창
-       ├─ quota 패턴 → exit 3 + Claude fallback
-       └─ idle/hard timeout → exit 124
-```
-
-**Prompt suffix**: 사용자 요청 본문 끝에 `core/sentinel-instructions.md` 가 자동 append되어, Codex에게 응답 완료 후 sentinel 파일 작성을 지시.
-
-**자동 git init**: Codex 대화형은 git repo를 요구. wrapper는 `.git` 없으면 자동 `git init -q -b main` 수행 (안내 메시지 출력).
-
-**별창 비활성**: `HARNESS_NO_VISIBLE=1` 로 wt.exe attach skip — tmux는 detached로 계속 동작, 사용자는 wrapper의 heartbeat 메시지만 봄.
-
-### Drift 검사 (자동)
-
-`/harness <task>` 호출 시 Step 0에서 **마스터 (`~/.claude/skills/harness/{core,wrappers}/*.sh`) vs 프로젝트 (`<PROJECT>/.harness/{core,wrappers}/*.sh`)** sha256 해시 비교. 차이 있으면 사용자에게 4지선다:
-
-```
-⚠️ N건의 .sh 파일이 마스터와 다릅니다:
-   - wrappers/codex-review.sh (modified)
-   - core/run-interactive.sh (modified)
-
-[A] 마스터로 최신화 (백업 후 덮어쓰기)        ← 권장
-[B] 이번 task만 skip (다음 호출 시 다시 물음)
-[C] 영구 무시 (~/.harness/.skip-drift-check 마커)
-[D] 작업 취소
-```
-
-A 선택 시: `<PROJECT>/.harness/backups/<file>.bak-<ts>` 자동 백업 + 마스터 파일로 교체.
-
-**우회/제어**:
-- `HARNESS_SKIP_DRIFT_CHECK=1` env — 자동화/CI용
-- `~/.harness/.skip-drift-check` 파일 — 영구 비활성 (옵션 C가 만들기도 함)
-- `<PROJECT>/.harness/.skip-drift-this-task` — one-shot skip (옵션 B가 만들고 사용 후 자동 삭제)
-
-수동 검사:
-```bash
-bash ~/.claude/skills/harness/core/check-drift.sh <PROJECT_DIR>
-bash ~/.claude/skills/harness/core/sync-from-master.sh <PROJECT_DIR>  # 동기화
-```
-
-### 업데이트 흐름 (`/harness-setup --update`)
-
-설치된 Harness가 GitHub의 main 브랜치보다 오래된 경우:
-
-```
-/harness-setup                # → 9/9 통과 + "⬆ 업데이트 가능: 현재 abc1234 → 최신 def5678"
-/harness-setup --update       # → 백업 + tarball 다운로드 + 적용 + .version 갱신
-```
-
-자동 처리:
-- ✅ 업데이트 전 `~/.claude/skills/harness.bak-<timestamp>` 자동 백업 (롤백 가능)
-- ✅ 로컬 수정 파일 감지 시 경고 (`.version`보다 새로운 파일 명단)
-- ✅ `.version` 갱신 (commit SHA + ISO 타임스탬프)
-- ✅ `.doctor-passed` 마커 초기화 → 다음 `/harness-setup`에서 재검진
-- ✅ 캐시 무효화 (즉시 새 버전 확인 가능)
-
-GitHub 조회 캐시: `~/.harness/.last-github-check` (1시간 TTL, rate limit 60/hr 방어).
-
-오프라인일 때:
-```
-/harness-setup --no-version-check    # GitHub 호출 건너뜀
-```
-
-### `/harness-review` 사용 예시
-
-전체 Plan→Review 워크플로우(`/harness`)와 별개로, 가벼운 즉석 리뷰가 필요할 때:
-
-```
-/harness-review src/auth.ts 보안 위주로
-/harness-review 이 두 파일 타입 안전성 평가: src/api.ts src/types.ts
-/harness-review --paste TypeScript 코드 한 덩어리 리뷰
-/harness-review --mode plan-critique docs/rfc.md 비판적으로
-```
-
-- 자연어 + 파일 경로를 자동 분리 (Claude가 파싱)
-- 결과는 채팅에 verbatim 출력 + `.harness/reviews/adhoc-<timestamp>.md`에 자동 저장
-- `--paste`: 파일 대신 채팅에서 paste 받기
-- `--mode plan-critique`: 코드가 아닌 계획서/RFC 등 문서 비판
-- 인자 없이 호출하면 사용법만 출력 (의도치 않은 자동 동작 방지)
 
 ---
 
 ## 📐 워크플로우
 
 ```
-사용자: /harness <task>
+사용자: /harness [--noagent] <task>
     ↓
-Step 0: Init (PROJECT_ROOT, REQUEST_ID, doctor 통과 확인, .harness/ bootstrap)
+step1: harness 초기화
+       (REQUEST_ID, .harness/ 폴더, wrapper 동기화, --noagent 플래그 처리)
     ↓
-Phase 1: Plan (6 sub-phases)
-  1.0 Initial Draft        → plan.md v1
-  1.1 Self-Review (10pt)   → checklist 결과
-  1.2 Codex Critique 🚨    → MANDATORY 외부 호출
-  1.3 User Approval        → 진행 / 수정 / 다시 / 취소
-  1.4 Revision (≤3)        → critique·feedback 반영
-  1.5 Finalize             → progress.md 초기화
+step2: 도메인 설계 (plan skill + 메인 Claude 직접 리서치 + Codex 리뷰 + 사용자 승인)
+       산출물: domain-<slug>.md
     ↓
-Phase 2: Research (선택)    → Gemini 호출, research/research-N.md
+step3: 구현 계획 (plan skill + Codex 리뷰, 자동)
+       산출물: implementation-<slug>.md
     ↓
-Phase 3: Implement          → Edit/Write로 직접 구현
+step4: 구현 (메인 Claude 직접 코드 작성)
+       산출물: 프로젝트 코드 + progress 기록
     ↓
-Phase 4: Review Loop (≤3 iter)
-  Codex 리뷰 → LGTM?
-    NO + Critical/High → improvement.md → 재구현 → ITER++
-    YES               → break
+step5: 리뷰 (Codex; 불가 시 code-review skill fallback)
+       산출물: review-<slug>.md (누적)
+       ├─ LGTM YES → step6
+       └─ LGTM NO → step3 으로 루프 (동일 문제 5회 시 중단)
     ↓
-Phase 5: Complete           → result.md, plan/progress status=completed
+step6: QA 테스트 (test-guide 작성 + harness-qa-engineer 스크린샷·클릭)
+       산출물: test-guide-<slug>.md, qa-<slug>.md
+       ├─ PASS → step7
+       ├─ FAIL → step3 으로 루프
+       └─ BLOCKED → 사용자 결정
+    ↓
+step7: 커스터머 유저 테스트 (전체 1회. production 설치본 빌드/설치/실행 후
+                          harness-customer-user 가 일반인 시점 테스트)
+       산출물: customer-<slug>.md
+    ↓
+step8: git commit / push (git remote 있을 때만; 없으면 complete 로 직행)
+    ↓
+complete: report-<slug>.md (사람 가독 보고서) + ADR append
 ```
 
-산출물 트리:
+### 기본 모드 vs `--noagent` 모드
+
+| step | 기본 모드 | `--noagent` 모드 |
+|------|----------|------------------|
+| step2 도메인 설계 | `plan` skill (메인 Claude) | `plan` skill (메인 Claude) |
+| step3 구현 계획 | `plan` skill (메인 Claude) | `plan` skill (메인 Claude) |
+| step4 구현 | 메인 Claude 직접 | 메인 Claude 직접 |
+| step5 리뷰 | Codex CLI (fallback: `code-review` skill) | Codex CLI (fallback: `code-review` skill) |
+| step6 QA | **`harness-qa-engineer` subagent** | `browser-qa` skill / 메인 직접 |
+| step7 커스터머 | **`harness-customer-user` subagent** | `browser-qa` skill / 메인 직접 (페르소나 가치 손실) |
+| step8 commit | 메인 Claude 직접 | 메인 Claude 직접 |
+
+### 산출물 트리
+
 ```
 <project>/.harness/
-├── plans/plan-<id>.md
-├── progress/progress-<id>.md
-├── research/research-<id>-NN-<slug>.md
-├── reviews/review-<id>-iter-N.md
-├── improvements/improvement-<id>-iter-N.md
-├── results/result-<id>.md
-├── wrappers/       # 마스터에서 첫 호출 시 자동 복제
-└── core/           # 마스터에서 첫 호출 시 자동 복제
+├── .noagent                          # --noagent 플래그 상태 (있으면 모드 ON)
+├── domain-<slug>.md                  # step2 도메인 설계
+├── implementation-<slug>.md          # step3 구현 계획
+├── test-guide-<slug>.md              # step6/step7 공용 테스트 가이드
+├── research/research-<slug>-NN-*.md  # 메인 Claude 가 직접 수행한 리서치 (선택)
+├── reviews/review-<slug>.md          # step5 Codex 리뷰 (누적)
+├── results/qa-<slug>.md              # step6 QA 보고서
+├── results/customer-<slug>.md        # step7 커스터머 테스트 보고서
+├── results/report-<slug>.md          # complete 사람 가독 보고서
+├── progress/progress-<slug>.md       # 실시간 상태
+├── wrappers/                         # 마스터에서 부트스트랩
+├── core/                             # 마스터에서 부트스트랩
+├── agents/learning/                  # 프로젝트 학습 데이터 (.gitignore 권장)
+└── backups/                          # drift sync 시 백업
 ```
+
+---
+
+## 🧱 폴더 생성 규칙 (구현 시)
+
+step4 구현 단계에서 새 폴더를 만들 때:
+- **root 폴더에 파일을 직접 만들지 않는다.** 폴더를 먼저 만들고 그 안에 파일을 넣는다.
 
 ---
 
@@ -342,7 +268,7 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" \
   "🔓 codex login" "codex login"
 ```
 
-→ 새 Windows Terminal 창에서 명령 실행, 사용자 직접 입력, Enter로 닫기.
+→ 새 Windows Terminal 창에서 명령 실행, 사용자 직접 입력, Enter 로 닫기.
 
 ---
 
@@ -350,16 +276,14 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" \
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
-| `Gemini CLI is not running in a trusted directory` | Gemini 워크스페이스 신뢰 안 됨 | wrapper에 `--skip-trust` 이미 포함됨 |
-| `You have exhausted your capacity on this model` | Free tier RPM 소진 | wrapper가 4회 retry 실패 감지 후 exit 3, Claude fallback |
-| `you must specify the GEMINI_API_KEY environment variable` | `~/.bashrc`에 키 있으나 wrapper에서 못 찾음 | wrapper가 grep+eval로 interactive-guard 우회 (자동 처리) |
-| `API key expired. Please renew the API key` | Google이 노출된 키 자동 회수 | 새 키 발급 → `~/.bashrc` 갱신. **절대 채팅·공개 위치에 키 노출 금지** |
-| `This command must run inside a Git repository` (`/codex:review`) | 별개 issue — Codex CLI가 git 강제 요구 | `git init` 후 재시도, 또는 `codex-reviewer` agent 직접 호출 |
-| `warning: Codex could not find bubblewrap on PATH ... Codex will use the bundled bubblewrap` | WSL에 bubblewrap 미설치, Codex가 번들 fallback 사용 중 | **무시 가능 (동작·보안 영향 없음)**. 깔끔히 없애려면: `sudo apt install -y bubblewrap` (또는 `bash ~/.claude/skills/harness/core/run-interactive.sh "📦 bubblewrap" "sudo apt install -y bubblewrap"`) |
-| `codex_core::tools::router: error=write_stdin failed: stdin is closed for this session` | **Codex CLI 자체 버그** — tool router가 닫힌 subprocess stdin에 명령 쓰려고 함. 큰 repo + 다중 rg/find 호출 환경에서 가끔 발생. exit 4로 분류됨 | wrapper가 자동 감지 후 Claude code-reviewer agent로 fallback. 권장: `npm i -g @openai/codex@latest` 로 업데이트 |
-| Codex가 응답은 했는데 sentinel 파일 안 만들고 종료 | Codex가 sentinel 작성 지시를 무시한 케이스. wrapper가 pane capture를 fallback으로 결과 사용 + exit 1 | 메시지에 표시. 자주 발생하면 sentinel suffix template 강화 검토 |
-| `tmux 미설치` | doctor check #3에서 잡힘 | `sudo apt install -y tmux` 또는 `bash ~/.claude/skills/harness/core/run-interactive.sh "📦 tmux 설치" "sudo apt install -y tmux"` |
-| Codex TUI가 git repo가 아닌 곳에서 시작 거부 | wrapper가 자동 `git init -q -b main` 수행 후 진행 | 안내 메시지 한 줄 출력 |
+| Codex 로그인 필요 | Codex CLI 인증 만료 | wt.exe 별창에서 `codex login` 완료 후 메인 채팅에 "완료" |
+| Codex quota 소진 (exit 3) | ChatGPT Plus 한도 도달 | `code-review` skill 또는 Claude self critique 로 자동 fallback. 그대로 진행됨 |
+| `codex_core::tools::router: error=write_stdin failed` (exit 4) | Codex CLI 버그 — tool router 가 닫힌 subprocess stdin 에 write | `npm i -g @openai/codex@latest` 후 재시도 |
+| `Argument list too long` | code review prompt 가 ARG_MAX 초과 | `--prompt-file` 패턴 사용 (step5 Codex 리뷰 호출 시) |
+| `This command must run inside a Git repository` | Codex CLI 가 git 강제 요구 | wrapper 가 자동 `git init -q -b main` 수행. 안내 메시지 출력 |
+| `warning: Codex could not find bubblewrap on PATH` | WSL 에 bubblewrap 미설치, 번들 fallback | **무시 가능**. 깔끔히 없애려면: `sudo apt install -y bubblewrap` |
+| `harness-* agent not found` | Claude Code 세션 시작 후 추가된 agent | Claude Code 재시작. registry 는 시작 시만 스캔 |
+| Drift 감지 | 마스터 wrapper 가 갱신됨 | `/harness sync` 또는 다음 `/harness` 호출 시 A 선택 |
 
 상세: [skills/harness/docs/setup.md](skills/harness/docs/setup.md)
 
@@ -371,40 +295,32 @@ bash "$HOME/.claude/skills/harness/core/run-interactive.sh" \
 Harness/
 ├── README.md                      # 이 문서
 ├── commands/
-│   └── harness-setup.md           # /harness-setup 슬래시 커맨드
+│   ├── harness-setup.md           # /harness-setup
+│   ├── harness-help.md            # /harness-help
+│   ├── harness-spec.md            # /harness-spec
+│   ├── harness-review.md          # /harness-review
+│   ├── harness-audit.md           # /harness-audit
+│   └── harness-distill.md         # /harness-distill
 └── skills/harness/
-    ├── SKILL.md                   # 메인 skill 정의 (워크플로우 명세)
-    ├── core/                      # 인프라 스크립트
-    │   ├── bootstrap-runtime.sh   # 마스터→프로젝트 복제 + CRLF/+x 보정
-    │   ├── harness-doctor.sh      # 9개 prereq 검진 + --fix 옵션
-    │   ├── run-interactive.sh     # 별창 실행 헬퍼
-    │   └── sync-creds.sh          # 자격 증명 동기화
-    ├── wrappers/                  # 외부 CLI 호출 wrapper
-    │   ├── codex-review.sh        # Codex critique/review (exit 0/2/3 분기)
-    │   ├── gemini-research.sh     # Gemini research (retry-storm watcher + fail-fast)
-    │   └── auth-helper.sh         # codex login / gemini /auth 별창
-    ├── templates/                 # 산출물 템플릿
-    │   ├── plan.md
-    │   ├── progress.md
-    │   ├── research.md
-    │   ├── review.md
-    │   ├── improvement.md
-    │   └── result.md
-    ├── agents/                    # 관련 sub-agent (선택 사용)
-    │   ├── codex-reviewer.md
-    │   └── gemini-researcher.md
-    └── docs/                      # 가이드 문서
-        ├── setup.md
-        ├── workflow.md
-        ├── file-formats.md
-        └── examples.md
+    ├── SKILL.md                   # 메인 skill 정의 (워크플로우 명세 + CRITICAL 규칙)
+    ├── core/                      # 인프라 스크립트 (bootstrap, doctor, drift 검사, interactive 헬퍼)
+    ├── wrappers/                  # 외부 CLI 호출 wrapper (codex-review)
+    ├── templates/                 # 산출물 템플릿 (plan, result, review, progress 등)
+    ├── agents/                    # harness-* 서브에이전트 (planner/architect/code-reviewer/security-reviewer/tdd-guide/build-resolver/qa-engineer/customer-user)
+    │   └── learning/              # 각 agent 의 누적 학습 데이터
+    └── docs/
+        ├── workflow.md            # 전체 흐름 + CRITICAL Step 스킵 금지 + --noagent 모드
+        ├── steps/                 # step1 ~ step8 + complete 각 단계 상세
+        ├── test-guide-format.md   # step6/step7 테스트 가이드 양식
+        ├── setup.md               # 설치·환경 상세
+        └── ...
 ```
 
 ---
 
 ## 🤝 기여
 
-- 이슈/PR 환영. wrapper 동작이나 새 환경에서 마주친 트랩 등을 setup.md에 추가하면 다른 사용자에게도 도움됨.
+- 이슈/PR 환영. wrapper 동작이나 새 환경에서 마주친 트랩 등을 setup.md 에 추가하면 다른 사용자에게도 도움됨.
 - Mac/Linux 네이티브 지원은 별도 fork 권장 (현재 코드는 WSL `wsl.exe`/`wt.exe` 직접 호출 가정).
 
 ---
@@ -419,4 +335,3 @@ MIT — 자유롭게 사용·수정·재배포. 사용자 책임.
 
 - [Claude Code](https://docs.claude.com/claude-code) — 호스트 환경
 - [OpenAI Codex CLI](https://github.com/openai/codex) — primary reviewer
-- [Google Gemini CLI](https://github.com/google/generative-ai-cli) — research backend

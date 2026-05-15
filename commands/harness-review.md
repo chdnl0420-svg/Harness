@@ -71,22 +71,23 @@ argument-hint: '<자연어 + 파일경로...> [--paste] [--mode plan-critique]'
 
 ## Step 2: 리뷰 대상 콘텐츠 수집
 
-### 2-A. 파일 경로가 있는 경우
+### 2-A. 파일 경로가 있는 경우 (코드 본문 합치지 말 것)
 
-각 파일에 대해 `Read` 도구로 내용 읽기. 합쳐서 다음 형식:
+🚨 **파일 본문을 prompt 에 합쳐 넣지 않는다.** Codex 가 자신의 file-read 도구로 직접 읽도록 **경로만** 명시한다. prompt 크기를 ~2KB 수준으로 유지해 ARG_MAX·context 부담을 줄인다.
+
+목록 형식 (Step 3 의 `[Files to review]` 섹션에 그대로 들어감):
 
 ```
-=== FILE: <path1> ===
-<content1>
-
-=== FILE: <path2> ===
-<content2>
+- <path1>
+- <path2>
 ```
 
-**주의**:
-- 파일이 1MB 초과면 사용자에게 confirm 받기 (Codex 토큰 한계)
-- 파일이 존재 안 함 → 에러 보고 + 종료
-- 디렉토리 경로면 → 안에 있는 텍스트 파일 모두 (재귀, 최대 20개) 또는 사용자 confirm
+**경로 검증·정규화**:
+- 각 경로에 대해 Bash `[ -f <path> ] || [ -d <path> ]` 로 존재만 확인. 본문 Read 금지.
+- 경로는 호출 시점 `pwd` (= `$PROJECT_DIR`) 기준 **상대 경로** 로 통일. Codex 는 `-C $PROJECT` 로 실행되므로 그 디렉토리 기준으로 해석된다.
+- 경로 개수 상한 20개. 초과 시 사용자 confirm.
+- 존재하지 않는 경로가 하나라도 있으면 에러 보고 + 종료.
+- 디렉토리 경로면 그 디렉토리 경로만 한 줄로 적는다 (codex 가 안의 파일을 알아서 탐색). 재귀 펼침 금지.
 
 ### 2-B. `--paste` 모드
 
@@ -112,15 +113,33 @@ argument-hint: '<자연어 + 파일경로...> [--paste] [--mode plan-critique]'
 
 ## Step 3: Prompt 빌드
 
+파일 경로 모드 (Step 2-A) 인 경우:
+
 ```
 [Reviewer focus]
 <focus text — 비어있으면 이 섹션 생략>
 
-[Content]
-<2단계에서 수집한 콘텐츠>
+[Files to review]
+- <path1>
+- <path2>
+
+[Instructions]
+위 경로의 파일을 당신의 file-read 도구로 직접 읽어 검토하세요. 본문은 이 prompt 에 포함돼 있지 않습니다. 경로는 프로젝트 루트 기준 상대 경로입니다.
 ```
 
-focus 가 비어있으면 wrapper의 기본 SYSTEM_PROMPT 가 알아서 동작.
+paste 모드 (Step 2-B) 인 경우 — 본문이 실제로 필요하므로 그대로 포함:
+
+```
+[Reviewer focus]
+<focus text — 비어있으면 이 섹션 생략>
+
+[Pasted content]
+<paste 본문>
+```
+
+plan-critique 모드 — 검토 대상이 plan md 파일이면 2-A 처럼 경로만, 사용자가 plan 본문을 직접 paste 했으면 2-B 처럼 본문 포함.
+
+focus 가 비어있으면 wrapper 의 기본 SYSTEM_PROMPT 가 알아서 동작.
 
 ## Step 4: Codex 호출 (Bash 실제 실행 필수)
 

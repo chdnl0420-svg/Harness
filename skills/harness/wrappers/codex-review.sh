@@ -90,9 +90,10 @@ fi
 # ===== 모드별 시스템 프롬프트 =====
 case "$MODE" in
     code)
-        SYSTEM_PROMPT='[중요 — 파일 수정 금지]
+        SYSTEM_PROMPT='[중요 — 파일 쓰기 금지, 읽기는 허용]
 당신은 리뷰만 수행합니다. 이 작업 중 어떤 소스 파일도 수정/생성/삭제하지 마세요.
-유일한 예외: 작업 끝에 sentinel 파일 한 개만 작성 (지시는 프롬프트 끝에 있음).
+파일 읽기(file-read / cat 등) 는 허용 — 사용자 prompt 에 리뷰 대상 파일이 본문 없이 "Files to review" 경로 목록으로만 전달되었다면 당신의 file-read 도구로 그 경로를 직접 읽어 검토하세요. 경로는 프로젝트 루트 기준 상대 경로 입니다.
+유일한 쓰기 예외: 작업 끝에 sentinel 파일 한 개만 작성 (지시는 프롬프트 끝에 있음).
 코드 변경·리팩토링·테스트 작성 모두 금지. 지적만 텍스트로.
 
 당신은 시니어 코드 리뷰어입니다. 코드/설계를 다음 기준으로 검토하세요:
@@ -295,8 +296,22 @@ while [ "$WAITED" -lt "$READY_TIMEOUT" ]; do
     WAITED=$((WAITED + 1))
     PANE_CAPTURE=$(tmux capture-pane -t "$SESSION_NAME" -p 2>/dev/null)
 
+    # Trust prompt (codex 0.130+) — `Do you trust the contents of this directory?`
+    # 이 화면이 떠 있는 동안 wrapper 가 Escape 를 보내면 codex 가 곧바로 status 0 으로
+    # 종료해서 pane dead 가 됨. ready 판단 전에 '1' + Enter 로 통과시킨다.
+    if echo "$PANE_CAPTURE" | grep -qiE "trust the contents of this directory|Yes, (continue|proceed) and trust"; then
+        echo "  🛡  trust prompt 감지 → '1' + Enter 자동 응답" >&2
+        tmux send-keys -t "$SESSION_NAME" "1"
+        sleep 0.2
+        tmux send-keys -t "$SESSION_NAME" Enter
+        sleep 1.2
+        continue
+    fi
+
     # 정상 prompt 라인 감지 (gpt-5.5 default, Write tests for @filename 등)
-    if echo "$PANE_CAPTURE" | grep -qE 'gpt-[0-9.]+ default|Write tests for @|› ' 2>/dev/null; then
+    # 주의: codex 0.130+ trust prompt 가 `› 1. Yes, continue` 라인을 포함하므로
+    # `› ` 만 매칭하면 trust 화면을 ready 로 오인 → Escape 후 quit. `› ` 제거.
+    if echo "$PANE_CAPTURE" | grep -qE 'gpt-[0-9.]+ default|Write tests for @' 2>/dev/null; then
         READY=1
         break
     fi
@@ -337,22 +352,88 @@ if [ "$READY" != "1" ]; then
 fi
 echo "  ✅ Codex TUI ready" >&2
 
-# ===== 프롬프트 주입 (크기 기반 분기) =====
+# ===== Stale 모드(자동 resume / scroll / edit) 빠져나오기 =====
+# 2026-05-15: Codex v0.130.0 부터 비정상 종료된 직전 세션을 자동 resume 함.
+# 그 결과 새 호출 시 메인 input box 대신 메시지 스크롤/편집 모드로 진입 →
+# paste-buffer 가 input box 에 들어가지 못해 prompt 주입이 실패.
+# 해결: paste 전에 Escape 를 여러 번 보내 어떤 모드든 메인 input box 로 강제 복귀.
+TARGET_PANE="$SESSION_NAME:0.0"
+for _ in 1 2 3; do
+    tmux send-keys -t "$TARGET_PANE" Escape 2>/dev/null
+    sleep 0.25
+done
+sleep 0.4
+
+POST_ESC=$(tmux capture-pane -t "$TARGET_PANE" -p 2>/dev/null)
+if ! echo "$POST_ESC" | grep -qE '› |gpt-[0-9.]+ default' 2>/dev/null; then
+    echo "  ⚠ Escape 후에도 메인 input box 미감지 — 화면 마지막 8줄:" >&2
+    echo "$POST_ESC" | tail -8 | sed 's/^/      │ /' >&2
+fi
+
+# ===== 프롬프트 주입 (load-buffer + paste-buffer + 검증 + 재시도) =====
 PROMPT_FILE=$(mktemp /tmp/harness-codex-prompt-XXXXXX.txt)
 printf '%s' "$FULL_PROMPT" > "$PROMPT_FILE"
 
 # 항상 load-buffer + paste-buffer 사용:
-# - send-keys -l 은 멀티라인 텍스트의 newline을 codex TUI가 submit으로 해석할 수 있어 prompt 쪼개짐.
-# - load-buffer + paste-buffer 는 input box에 buffer 내용을 한 덩어리로 paste → 안전.
-echo "  ⌨  prompt 주입 (load-buffer + paste-buffer, ${PROMPT_LEN} bytes)..." >&2
-tmux load-buffer -t "$SESSION_NAME" -b "harness-prompt-$$" "$PROMPT_FILE"
-# -p: bracketed paste 모드 (TUI가 paste임을 명확히 인지)
-# -d: paste 후 buffer 자동 삭제
-tmux paste-buffer -t "$SESSION_NAME" -b "harness-prompt-$$" -p -d
-sleep 1.0
-# paste 후 Enter로 submit
-tmux send-keys -t "$SESSION_NAME" Enter
-echo "  ✅ prompt 전송 + Enter" >&2
+# - send-keys -l 은 멀티라인 텍스트의 newline 을 codex TUI 가 submit 으로 해석할 수 있어 prompt 쪼개짐.
+# - load-buffer + paste-buffer 는 input box 에 buffer 내용을 한 덩어리로 paste → 안전.
+# - -p: bracketed paste 모드 (TUI 가 paste 임을 명확히 인지, newline 을 줄바꿈으로 처리)
+# - -d: paste 후 buffer 자동 삭제
+inject_prompt() {
+    local buf_name="$1"
+    tmux load-buffer -b "$buf_name" "$PROMPT_FILE"
+    tmux paste-buffer -t "$TARGET_PANE" -b "$buf_name" -p -d
+}
+
+# prompt 의 첫 의미 있는 단어 추출 (입력 검증용 marker)
+PROMPT_MARKER=$(printf '%s' "$FULL_PROMPT" | tr '\n' ' ' | awk '{for(i=1;i<=NF;i++){ if(length($i)>=4){ print $i; exit } }}')
+[ -z "$PROMPT_MARKER" ] && PROMPT_MARKER=$(printf '%s' "$FULL_PROMPT" | head -c 12)
+
+# 입력 박스에 prompt 가 실제로 들어갔는지 확인하는 함수.
+# Codex TUI 는 large paste 를 `[Pasted Content NNN chars]` 로 collapse 표시하기 때문에
+# marker 자체가 capture 텍스트에 안 보일 수 있음 → 그 collapse 표기도 success 로 인정.
+verify_paste() {
+    local cap
+    cap=$(tmux capture-pane -t "$TARGET_PANE" -p -S - 2>/dev/null)
+    # 1) Codex 의 paste collapse 표기
+    if echo "$cap" | grep -qE '\[Pasted Content [0-9]+ chars\]'; then
+        return 0
+    fi
+    # 2) marker 가 그대로 보임 (소형 prompt)
+    if [ -n "$PROMPT_MARKER" ] && echo "$cap" | grep -qF "$PROMPT_MARKER"; then
+        return 0
+    fi
+    return 1
+}
+
+echo "  ⌨  prompt 주입 (load-buffer + paste-buffer, ${PROMPT_LEN} bytes, marker='${PROMPT_MARKER}')..." >&2
+inject_prompt "harness-prompt-$$"
+sleep 2.5
+
+if ! verify_paste; then
+    echo "  ⚠ paste 후 입력박스에 콘텐츠 미감지 — Escape 후 1회 재시도" >&2
+    # 입력박스에 잘못 들어간 부분이 있다면 Ctrl+U 로 라인 비움
+    tmux send-keys -t "$TARGET_PANE" C-u 2>/dev/null
+    sleep 0.3
+    for _ in 1 2; do
+        tmux send-keys -t "$TARGET_PANE" Escape 2>/dev/null
+        sleep 0.3
+    done
+    inject_prompt "harness-prompt-retry-$$"
+    sleep 3.0
+    if ! verify_paste; then
+        echo "❌ 재시도에도 입력박스에 prompt 미반영 — 진단 후 종료" >&2
+        tmux capture-pane -t "$TARGET_PANE" -p 2>/dev/null | tail -15 | sed 's/^/    │ /' >&2
+        echo "  (디버그 보존: tmux=$SESSION_NAME)" >&2
+        rm -f "$INNER" "$PROMPT_FILE"
+        exit 1
+    fi
+fi
+
+# paste 완료 후 추가 안정화 → submit
+sleep 0.6
+tmux send-keys -t "$TARGET_PANE" Enter
+echo "  ✅ prompt 전송 + Enter (검증 OK)" >&2
 
 # ===== 폴링 (sentinel + pane 종료 + idle + 에러 패턴) =====
 # Idle 감지: pane capture **내용 hash** 변화로 활동 판정.
@@ -365,6 +446,7 @@ LAST_CAPTURE_HASH=""
 LAST_SENTINEL_SIZE=0
 HEARTBEAT=0
 END_REASON=""
+SENTINEL_RETRY_SENT=0   # codex 0.130+ 자동복구: 응답완료 후 sentinel 누락 시 1회 재요청 plаg
 
 while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
     sleep 2
@@ -374,6 +456,47 @@ while [ "$WAITED" -lt "$HARD_LIMIT" ]; do
     if [ -f "$SENTINEL" ] && grep -q '<<<HARNESS-DONE>>>' "$SENTINEL" 2>/dev/null; then
         END_REASON="sentinel"
         break
+    fi
+
+    # 1-B. 자동 복구 (codex 0.130+ 패턴 대응)
+    #      응답 출력 완료 후 codex 가 sentinel 작성을 누락하고 입력박스로 바로 복귀하는
+    #      케이스. 트리거: "─ Worked for ... ─" 종료 마커 + 입력박스(gpt-X.X default)
+    #      가 capture 에 동시에 보이면 codex 에 sentinel 작성을 한 번만 재요청한다.
+    #      재요청에도 실패하면 기존 idle-timeout 경로로 자연 종료.
+    if [ ! -f "$SENTINEL" ] && [ "$SENTINEL_RETRY_SENT" = "0" ]; then
+        FULL_CAPTURE=$(tmux capture-pane -t "$SESSION_NAME" -p -S - 2>/dev/null)
+        if echo "$FULL_CAPTURE" | grep -qE '─+ Worked for [0-9]+'; then
+            if echo "$FULL_CAPTURE" | tail -30 | grep -qE 'gpt-[0-9.]+ default'; then
+                echo "  📥 응답 완료 + 입력박스 복귀 감지 → codex 에 sentinel 작성 재요청 (one-shot)" >&2
+                REMIND_TMP=$(mktemp /tmp/harness-codex-retry-XXXXXX.txt)
+                cat > "$REMIND_TMP" <<EOF
+방금 출력한 응답 본문을 아래 sentinel 파일에 누락 없이 작성해 주세요. 이 파일이 없으면 호출자(harness wrapper) 가 무한 대기 후 timeout 으로 작업이 실패합니다.
+
+파일 경로:
+$SENTINEL
+
+파일 내용 (정확히 이 형식 — 응답 본문은 방금 화면에 출력한 내용 그대로 한 글자도 변형 금지):
+
+\`\`\`
+<응답 본문 전체>
+
+<<<HARNESS-DONE>>>
+\`\`\`
+
+마커 \`<<<HARNESS-DONE>>>\` 는 마지막 단독 라인. 다른 파일은 절대 만들거나 수정하지 마세요.
+EOF
+                BUF="harness-retry-$$"
+                tmux load-buffer -b "$BUF" "$REMIND_TMP" 2>/dev/null
+                tmux paste-buffer -t "$TARGET_PANE" -b "$BUF" -p -d 2>/dev/null
+                sleep 0.6
+                tmux send-keys -t "$TARGET_PANE" Enter 2>/dev/null
+                rm -f "$REMIND_TMP"
+                SENTINEL_RETRY_SENT=1
+                # idle 카운터 reset 유도 (capture 가 paste 로 변경됨)
+                LAST_CAPTURE_HASH=""
+                continue
+            fi
+        fi
     fi
 
     # 2. tmux pane 종료 감지

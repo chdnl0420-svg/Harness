@@ -31,6 +31,10 @@
 - [2026-05-14] Inner-platform Effect: "나중에 필요할지도" 사고에서 시작되어 기존 런타임/프레임워크 기능을 재구현하는 설정 시스템을 내부에 만들어냄. 진단: "이 configurability 를 실제 사용자가 증명할 수 있는가". 근거: Wikipedia "Inner-platform effect" / The Daily WTF.
 - [2026-05-14] (training) Distributed Monolith — 서비스로 분리는 했지만 호출 그래프가 동기 + 강결합 + 동시 배포 필수. 모놀리식 단순성도 잃고 분산 시스템 복잡성도 얻은 최악 형태. 진단 신호: "한 서비스 배포가 다른 서비스 재시작을 요구" / "데이터베이스 공유". 근거: Sam Newman "Building Microservices" 2nd Ed.
 - [2026-05-14] (training) 모든 서비스가 자기 DB 를 가져야 한다는 원칙을 회피하려고 shared schema 를 두면 schema 변경이 N 팀 협의로 비대해진다. read-only replica + 도메인 이벤트 발행이 우회로. 근거: DDIA Ch10; Sam Newman.
+- [2026-05-15] (training) **Fitness function 도구 선택 — 언어별 표준 + Python 공백 주의** — Java→ArchUnit (ThoughtWorks Radar Adopt 단계), Kotlin→Konsist (Mercedes-Benz.io 2024-10 사례), .NET→NetArchTest/ArchUnitNET. **Python→Tach 는 2025-06-03 유지보수 중단 공식 발표**, 포크 dtach 존재하나 미래 불확실. Python 프로젝트에 fitness function 적용 시 `import-linter` 등 대안 추가 검증 필요. 공통: 모든 도구가 *"CI 파이프라인에 아키텍처 규칙을 단위 테스트로 인코딩"* 으로 수렴, 런타임 영향 없음. 근거: archunit.org 공식; github.com/LemonAppDev/konsist; github.com/tach-org/tach (중단 발표); github.com/BenMorris/NetArchTest.
+- [2026-05-15] (training) **AI 생성 ADR hallucination 3 유형** — ① Hallucinated reference material (존재하지 않는 API·웹페이지·제품 기능 인용), ② Misaligned justification (실제 의사결정 맥락과 무관한 근거 생성), ③ Overgeneralization (충분한 증거 없이 가정·추론). 정량 분포 (arXiv 2602.07609, 980 ADR / 109 GitHub repos): Semantic/Logical Misinterpretation 44.57% + Missing Context Inference 28.26% + Insufficient Domain Knowledge 18.48% + Overgeneralization 8.7%. 탐지 정확도 (Marco-o1 91.1% / Qwen3 90.4%) 도 "Code Is Insufficient to Answer(CIA)" 카테고리에서 F1 0.708~0.792 로 급락. 완화: 두-LLM judge 패턴 (생성 LLM 과 별도 LLM 이 논리 결함 비평) + 인간 최종 검토 + 충분한 코드베이스 컨텍스트. 근거: Equal Experts ADR + GenAI; arXiv 2602.07609 "LLM ADR Violation Detection"; arXiv 2403.01709.
+- [2026-05-15] (training) **Distributed Monolith 자동 진단 = OTel Service Graph Connector + Grafana 스택** — 클라이언트 span + 서버 span 쌍으로 서비스 간 의존성 메트릭 자동 생성. 핵심 메트릭: `traces_service_graph_request_total{client, server}` (호출 그래프), `request_failed_total{server="unknown"}` (계측되지 않은 숨겨진 의존성 탐지). `virtual_node_peer_attributes: [db.name, peer.service, messaging.system]` 설정으로 계측 미완 DB·캐시·메시지 브로커를 가상 노드로 표현 → 공유 DB 패턴 가시화. Dynatrace ServiceFlow / PurePath 가 상용 대안. 근거: oneuptime.com "OTel Service Dependency Graphs" 2026-02; dynatrace.com 분산 추적 docs.
+- [2026-05-15] (training) **Lookup/Resolve return contract — 언어별 분기 + DDD 컨센서스** — Rust: `Result<T,E>` / `Option<T>` 컴파일러 강제. Go: 다중 반환값 `(T, error)`, panic 은 unrecoverable 만. TS: throw 기반 + `Result<T,E>` 패턴 확산 (neverthrow / ts-results). Java: `Optional<T>` 관용구 (Spring Data JPA 표준). Python: 전통적 raise/except, `returns` 라이브러리로 Result 패턴 도입 증가 (비주류). **DDD 컨센서스**: Repository → null/Optional/None 반환, throw 는 Application Service 또는 Domain Service 레이어 결정. Repository 가 직접 throw 하면 단일 책임 원칙 위반. 근거: dev.to "Rust-like error handling TS"; enterprisecraftsmanship.com "Advanced error handling"; medium.com "Stop returning null from Repositories".
 
 ## Project-Specific
 프로젝트별 컨벤션. 공용 파일에서는 비어 있음.
@@ -40,4 +44,9 @@
 ## Open Questions
 아직 결론 안 난 것.
 
-- [2026-05-14] lookup/resolve 의 미존재·만료 시 반환 contract: throw vs `null` 반환 — 프로젝트 전역에서 어느 쪽을 기본으로 삼을지 정책화 필요.
+- [2026-05-15] **Distributed Monolith 공유 DB 패턴 자동 정적 탐지** — OTel virtual node 로 시각화는 가능하나 "두 서비스가 동일 DB 스키마를 공유하는가" 를 코드/스키마 수준에서 자동 검출하는 전용 도구 미발견. 동시 배포 의존성 탐지도 동일.
+- [2026-05-15] **AI 기반 조직-아키텍처 정렬 전용 도구** — SAFe Team Topologies for AI-enabled Teams 등 프레임워크 확장은 있으나, 실제 코드베이스와 org chart 를 연결해 misalignment 탐지하는 제품화 도구는 2026-05 기준 미확인.
+- [2026-05-15] **Python fitness function 표준 후속** — Tach 중단 이후 import-linter 가 후보로 거론되나 직접 검증 미완. Python 진영의 표준 대체재 미정.
+
+## Resolved Questions
+- [2026-05-15] **lookup/resolve 미존재·만료 시 반환 contract: throw vs null** → 해소. **DDD 컨센서스**: Repository → null/Optional/None 반환, throw 는 Application Service 또는 Domain Service 레이어. Repository 직접 throw = 단일 책임 위반. 언어별 관용구: Rust `Option/Result`, Go `(T, error)`, Java `Optional<T>` (Spring Data JPA 표준), TS `Result` 라이브러리 확산. (Patterns 의 "Lookup/Resolve return contract" entry 로 이동)

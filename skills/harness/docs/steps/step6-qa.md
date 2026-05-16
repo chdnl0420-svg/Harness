@@ -18,10 +18,13 @@
    - 재진입 시 (step3 루프 후): 변경된 사양/구현 반영해 갱신
    - 가이드 없이는 절대 테스트 시작 금지
 3. `harness-qa-engineer` 에 위임:
-   - **prior learning 전문 prepend** (`agents/learning/harness-qa-engineer.md` 본문)
-   - **test-guide-<slug>.md 전문 prepend**
+   - **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수.** 즉 다음을 Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend:
+     - `~/.claude/skills/harness/agents/learning/harness-qa-engineer.md` (공용)
+     - `<메인 repo>/.harness/agents/learning/harness-qa-engineer.md` (프로젝트, 있으면)
+   - **test-guide-<slug>.md 전문 prepend** (Prior Learning 헤더 다음, 본 작업 앞)
    - **메인 repo `.harness/` 절대경로 prepend** (worktree 안에서 호출 중인 경우)
    - **`isolation: "worktree"` 옵션 절대 사용 금지** (CRITICAL 섹션 참조)
+   - 위 4가지 중 하나라도 누락하면 호출 자체 금지. 도우미가 `[BLOCKED] Prior Learning header 누락` 으로 거부함.
 4. 도우미가 가이드 기능 목록 순서대로 스크린샷 + 클릭 기반 시나리오 실행
    - MCP 브라우저 도구 (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) 우선
    - 없으면 프로젝트의 기존 Playwright/Puppeteer 스크립트만 호출 (신규 스크립트 작성 금지)

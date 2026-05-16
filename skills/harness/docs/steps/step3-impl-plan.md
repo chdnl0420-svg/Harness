@@ -19,7 +19,8 @@
    - 보안 권고(OWASP/NIST/CVE) 가 구현 결정에 직접 영향
    - 도메인 단계의 *"외부 의존성: 조사 필요"* 항목이 미해결로 남음
    - 위임 방식·산출물 양식은 [harness-plan SKILL.md Phase 2](../../../harness-plan/SKILL.md) 와 동일 (Topic / Tier / Context / 조사 일자 필드 + `.harness/research/research-<slug>-<NN>-<topic>.md` 저장).
-   - `.harness/.noagent` 있으면 메인 Claude 직접 (동일 환각 차단 4규칙 적용).
+   - 위임 prompt 는 **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수** — `harness-deep-researcher.md` 학습 파일 2개 (공용 + 프로젝트) Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend. 누락 시 도우미가 `[BLOCKED]` 로 거부.
+   - `.harness/.noagent` 있으면 메인 Claude 직접 (동일 환각 차단 4규칙 적용 + 학습 파일 본인이 Read).
    - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록.
 3. `plan` skill 호출 (Skill tool, skill="plan") — 메인 Claude 가 직접 수행. 2번 리서치 결과 파일은 plan prompt 의 *"참고 자료"* 로 prepend.
 4. skill 결과를 Codex 가 리뷰

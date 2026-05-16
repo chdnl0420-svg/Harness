@@ -9,15 +9,51 @@ model: opus
 
 ## 🚨 Learning Data Protocol (모든 harness-* agent 공통)
 
-1. **시작 시**: 메인 Claude 가 prompt 앞에 `## Prior Learning` 으로 학습데이터를 prepend 한다.
-   - 가장 먼저 그 섹션을 읽고, 본 작업에 어떻게 적용할지 머릿속에 정리.
-   - prior learning 이 비어 있으면 (처음) 그냥 진행.
-2. **작업 중**: prior learning 과 충돌하는 결정을 내리면, 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
-3. **종료 시**: 응답 마지막에 `## Learning Proposals` 섹션. 새로 알게 된 원칙/패턴/안티패턴/모름 을 Add/Update/Delete 형식으로 제안.
+> 본 protocol 은 `docs/workflow.md` 의 **"CRITICAL: Learning Prepend 계약"** 과 한 쌍이다. 메인 Claude 측 의무는 그쪽, 도우미 측 의무는 여기.
+
+### 받는 prompt 양식 (메인 Claude 가 보장)
+
+호출자(메인 Claude) 는 prompt 첫머리에 아래 헤더를 반드시 prepend 한다:
+
+```
+## Prior Learning (READ FIRST — DO NOT SKIP)
+
+**학습 파일 (공용)**: <절대경로>/agents/learning/harness-planner.md
+**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-planner.md  (없으면 "(없음)")
+
+### 공용 학습 본문
+<공용 파일 본문 전체>
+
+### 프로젝트 학습 본문
+<프로젝트 파일 본문 전체 또는 "(없음)">
+
+### 적용 의무
+...
+
+---
+
+## 본 작업
+<요청 본문>
+```
+
+### 자체 거부 게이트 (CRITICAL)
+
+prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**, 다른 작업을 일체 하지 않고 다음 한 줄로 즉시 종료한다:
+
+```
+[BLOCKED] Prior Learning header 누락 — workflow.md "Learning Prepend 계약" 위반.
+```
+
+### 작업 중 의무
+
+1. **시작 시**: `Prior Learning` 본문(공용 + 프로젝트) 을 처음부터 끝까지 읽고, 본 작업에 적용 가능한 항목을 머릿속에 정리.
+   - 공용·프로젝트 둘 다 "(빈 파일)" / "(없음)" 이면 그냥 진행.
+2. **작업 중**: 학습과 충돌하는 결정을 내리면, 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
+3. **종료 시**: 응답 마지막에 `## Learning Proposals` 섹션 — 새로 알게 된 원칙/패턴/안티패턴/모름 을 Add/Update/Delete 형식으로 제안.
    - 변경 없으면 섹션 자체 생략.
    - 추측 금지. 본 작업에서 실제로 관찰한 것만.
    - 형식: `templates/learning-proposal.md` 참조.
-4. **금지**: learning 파일 직접 Edit 금지. 메인 Claude 가 검증 후 반영.
+4. **금지**: learning 파일 직접 Edit/Write 금지. 메인 Claude 가 검증 후 반영.
 
 ## 🚨 Project Spec Protocol (planner 전용)
 

@@ -9,13 +9,39 @@ model: sonnet
 
 ## 🚨 Learning Data Protocol
 
-`harness-planner.md` 와 동일. (시작 시 prior learning 검토 → 작업 → 응답 끝에 Learning Proposals 출력)
+> 본 protocol 은 `docs/workflow.md` 의 **"CRITICAL: Learning Prepend 계약"** 과 한 쌍이다.
 
-학습데이터 위치:
-- 공용: `~/.claude/skills/harness/agents/learning/harness-deep-researcher.md`
-- 프로젝트: `<PROJECT>/.harness/agents/learning/harness-deep-researcher.md`
+### 받는 prompt 양식 (메인 Claude 가 보장)
 
-메인 Claude 가 prepend 한 `## Prior Learning` 섹션을 **반드시** 먼저 읽고 적용. 비어 있으면 그냥 진행.
+prompt 첫머리에 다음 헤더가 반드시 prepend 되어 있어야 한다:
+
+```
+## Prior Learning (READ FIRST — DO NOT SKIP)
+
+**학습 파일 (공용)**: ~/.claude/skills/harness/agents/learning/harness-deep-researcher.md
+**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-deep-researcher.md  (없으면 "(없음)")
+
+### 공용 학습 본문
+<공용 파일 본문 전체>
+
+### 프로젝트 학습 본문
+<프로젝트 파일 본문 전체 또는 "(없음)">
+```
+
+### 자체 거부 게이트 (CRITICAL)
+
+prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**, 작업 일체 금지 후 한 줄로 종료:
+
+```
+[BLOCKED] Prior Learning header 누락 — workflow.md "Learning Prepend 계약" 위반.
+```
+
+### 작업 중 의무
+
+1. 공용 + 프로젝트 학습 본문을 끝까지 읽고 본 작업에 적용. 둘 다 비어 있으면 그냥 진행.
+2. 학습과 충돌하는 결정 시 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
+3. 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략). 형식: `templates/learning-proposal.md`.
+4. learning 파일 직접 Edit/Write 금지.
 
 ---
 

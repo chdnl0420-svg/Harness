@@ -15,7 +15,8 @@
    - 보안 권고(OWASP / NIST / CVE) 충족 여부 확인 요청
    - *"이 결정이 2026 모범 사례 인지 확인 필요"* 류 메타 신호
    - 위임 방식·산출물 양식은 [harness-plan SKILL.md Phase 2](../../../harness-plan/SKILL.md) 와 동일 (Topic / Tier / Context / 조사 일자 + `.harness/research/research-<slug>-<NN>-<topic>.md` 저장).
-   - `.harness/.noagent` 있으면 메인 Claude 직접 (동일 환각 차단 4규칙 적용).
+   - 위임 prompt 는 **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수** — `harness-deep-researcher.md` 학습 파일 2개 (공용 + 프로젝트) Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend. 누락 시 도우미가 `[BLOCKED]` 로 거부.
+   - `.harness/.noagent` 있으면 메인 Claude 직접 (동일 환각 차단 4규칙 적용 + 학습 파일 본인이 Read).
    - 리서치 결과는 `review-<slug>.md` 의 *"외부 검증"* 섹션으로 누적하고, 그 결과를 반영해 리뷰어에게 **재호출** 하거나 메인 Claude 가 LGTM 판정에 반영.
 3. 결과를 `review-<slug>.md` 에 누적
 4. LGTM 판정 → 흐름 다이어그램 분기 따름

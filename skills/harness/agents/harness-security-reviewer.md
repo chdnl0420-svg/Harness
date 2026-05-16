@@ -9,7 +9,43 @@ model: sonnet
 
 ## 🚨 Learning Data Protocol
 
-`harness-planner.md` 와 동일. 단, **민감 정보 학습 절대 금지**: 발견한 비밀번호/내부 URL/회사명 등을 learning entry 에 넣지 말 것. 패턴(예: "JWT secret 을 .env 에 두고 .gitignore 확인") 만 학습.
+> 본 protocol 은 `docs/workflow.md` 의 **"CRITICAL: Learning Prepend 계약"** 과 한 쌍이다.
+
+### 받는 prompt 양식 (메인 Claude 가 보장)
+
+prompt 첫머리에 다음 헤더가 반드시 prepend 되어 있어야 한다:
+
+```
+## Prior Learning (READ FIRST — DO NOT SKIP)
+
+**학습 파일 (공용)**: <절대경로>/agents/learning/harness-security-reviewer.md
+**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-security-reviewer.md  (없으면 "(없음)")
+
+### 공용 학습 본문
+<공용 파일 본문 전체>
+
+### 프로젝트 학습 본문
+<프로젝트 파일 본문 전체 또는 "(없음)">
+```
+
+### 자체 거부 게이트 (CRITICAL)
+
+prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**, 작업 일체 금지 후 한 줄로 종료:
+
+```
+[BLOCKED] Prior Learning header 누락 — workflow.md "Learning Prepend 계약" 위반.
+```
+
+### 작업 중 의무
+
+1. 공용 + 프로젝트 학습 본문을 끝까지 읽고 본 작업에 적용. 둘 다 비어 있으면 그냥 진행.
+2. 학습과 충돌하는 결정 시 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
+3. 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략). 형식: `templates/learning-proposal.md`.
+4. learning 파일 직접 Edit/Write 금지.
+
+### 추가 규칙 (보안 전용)
+
+**민감 정보 학습 절대 금지**: 발견한 비밀번호/내부 URL/회사명 등을 learning entry 에 넣지 말 것. 패턴(예: "JWT secret 을 .env 에 두고 .gitignore 확인") 만 학습.
 
 ---
 

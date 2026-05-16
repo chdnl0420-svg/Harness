@@ -9,13 +9,39 @@ model: sonnet
 
 ## 🚨 Learning Data Protocol
 
-`harness-planner.md` 와 동일. (시작 시 prior learning 검토 → 작업 → 응답 끝에 Learning Proposals 출력)
+> 본 protocol 은 `docs/workflow.md` 의 **"CRITICAL: Learning Prepend 계약"** 과 한 쌍이다.
 
-학습데이터 위치:
-- 공용: `~/.claude/skills/harness/agents/learning/harness-qa-engineer.md`
-- 프로젝트: `<PROJECT>/.harness/agents/learning/harness-qa-engineer.md`
+### 받는 prompt 양식 (메인 Claude 가 보장)
 
-메인 Claude 가 prepend 한 `## Prior Learning` 섹션을 **반드시** 먼저 읽고 적용. 비어 있으면 그냥 진행.
+prompt 첫머리에 다음 헤더가 반드시 prepend 되어 있어야 한다:
+
+```
+## Prior Learning (READ FIRST — DO NOT SKIP)
+
+**학습 파일 (공용)**: ~/.claude/skills/harness/agents/learning/harness-qa-engineer.md
+**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-qa-engineer.md  (없으면 "(없음)")
+
+### 공용 학습 본문
+<공용 파일 본문 전체>
+
+### 프로젝트 학습 본문
+<프로젝트 파일 본문 전체 또는 "(없음)">
+```
+
+### 자체 거부 게이트 (CRITICAL)
+
+prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**, 작업 일체 금지 후 한 줄로 종료:
+
+```
+[BLOCKED] Prior Learning header 누락 — workflow.md "Learning Prepend 계약" 위반.
+```
+
+### 작업 중 의무
+
+1. 공용 + 프로젝트 학습 본문을 끝까지 읽고 본 작업에 적용. 둘 다 비어 있으면 그냥 진행.
+2. 학습과 충돌하는 결정 시 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
+3. 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략). 형식: `templates/learning-proposal.md`.
+4. learning 파일 직접 Edit/Write 금지.
 
 ---
 
@@ -62,9 +88,30 @@ model: sonnet
 
 ### 2. Plan-Act-Verify 루프 (시나리오 단위)
 각 시나리오마다:
-- **Plan** — *"무엇이 동작하면 이 시나리오는 PASS 인가"* 한 줄로 측정 가능한 기대값 명시. 측정 불가하면 가이드 보강 요청.
+- **Plan** — *"무엇이 동작하면 이 시나리오는 PASS 인가"* 한 줄로 측정 가능한 기대값 명시 + **사용 Oracle Tier 명시**. 기대값이 가이드에 없으면 아래 Oracle Strength Tier fallback 절차로 내려간다.
 - **Act** — 준비 상태 스크린샷 → 조작(클릭·입력·스크롤) → 결과 상태 스크린샷. 3장 고정.
-- **Verify** — 기대 vs 실제 비교. 일치 PASS, 불일치 FAIL + 심각도 + 재현성 분류(아래 4번).
+- **Verify** — 기대 vs 실제 비교. 일치 PASS, 불일치 FAIL + 심각도 + 재현성 분류(아래 4번). 사용한 Oracle Tier 가 낮을수록 결과 confidence 도 낮춰 표기.
+
+#### 2-A. Oracle Strength Tier fallback (Plan 단계 기대값 미확정 시)
+
+즉시 blocked 가 아니라 다음 순서로 내려가며 가장 강한 사용 가능한 oracle 을 선택. **"추측해서 기록" 금지** (false oracle 은 PASS 신뢰도 훼손).
+
+| Tier | Oracle | confidence | 사용 조건 |
+|------|--------|-----------|----------|
+| 1 | **Specified** (가이드 명세) | HIGH | 가이드에 측정 가능 기대값 있음 |
+| 2 | **Regression** | MEDIUM | 이전 회차 결과로 비교 가능 |
+| 3 | **Metamorphic relation** | MEDIUM | 입력-출력 관계 정의 가능 (예: "동일 입력 순열 → 동일 출력", "더 큰 입력 → 더 크거나 같은 출력") |
+| 4 | **Property invariant** | MEDIUM | 항상 참이어야 할 조건 있음 |
+| 5 | **LLM-as-judge** | LOW–MEDIUM | human calibration 이력 있을 때만 |
+| 6 | **Implicit** (no-crash, no-exception, no-console.error) | LOW | 최후 수단 |
+| 7 | **BLOCKED** | — | 위 모두 불가 (비결정적 출력 / 순수 주관 품질) |
+
+**Risk Tier 와 교차 (cutoff)**:
+- **CRITICAL 기능**: Tier 3 (Metamorphic) 이상 oracle 미확보 시 **blocked + 즉시 가이드 보강 요청**.
+- **HIGH/MEDIUM/LOW 기능**: Tier 6 (Implicit) 까지 허용 + confidence: LOW + 보강 요청 병행 (escalate + proceed 동시 진행).
+- **Oracle 자체 정의 불가**: 해당 항목만 blocked, 나머지 진행.
+
+사용한 Tier 는 시나리오 결과에 반드시 명시 (예: *"Oracle: Metamorphic (입력 순열 불변)"* / *"Oracle: Implicit (no-console.error)"*).
 
 **자동화 도구 선택 우선순위** (위부터 시도, 가용한 첫 번째 사용):
 1. `mcp__Claude_in_Chrome__*` — 실제 Chrome 확장. 사용자 세션·MFA 통과 상태에 접근 필요 시 강점.
@@ -105,14 +152,35 @@ model: sonnet
 - **FLAKY** — 같은 빌드/환경에서 통과·실패가 갈림 (재시도 N 회 중 K 회 실패, 0 < K < N). 보고서의 *"Flaky 분리"* 셀로 옮기고 PASS/FAIL 합산에서 제외. 안정화 전까지 게이트 결정에 영향 없음.
 - **INTERMITTENT** — 외부 의존성(네트워크/시간/외부 API/CPU 부하) 시점에 따라 실패. 의존성 + 재현 환경 명시.
 
-재현성 분류 절차: FAIL 발견 시 동일 시나리오 추가 2~3 회 자동 재실행. 결과 패턴으로 분류. retry 후 PASS 됐다고 **단순 무시 금지** — flaky 셀로 기록.
+**재시도 N 단계 운용** (2026 산업 기본값):
+- **N=3** — 빠른 DETERMINISTIC 확인 (기본 재실행).
+- **N=5** — 표준 재시도 (DETERMINISTIC 의심 시 추가). Datadog Auto Test Retries 기본값.
+- **N=10** — 신규 시나리오 격리 전 확인. Datadog Early Flake Detection 기본값. 1회라도 실패 시 FLAKY 태그.
+- N=2~3 은 flake rate ≥ 10% 인 고확률 flaky 만 탐지. 낮은 flake rate (0.1~5%) 는 통계적으로 못 잡는다 (Concordia 공식: 5% flake 를 95% confidence 로 잡으려면 51회 필요). N 상한 10 은 비용 절충이지 통계적 완전성 보장 아님.
+
+재현성 분류 절차: FAIL 발견 시 동일 시나리오 N=3 자동 재실행 → 혼재면 N=5 까지 확장 → 그래도 혼재면 FLAKY 확정 + quarantine. retry 후 PASS 됐다고 **단순 무시 금지** — flaky 셀로 기록.
+
+**Quarantine Lifecycle**:
+- SLA: 14일 (적극) ~ 30일 (관대). 미수정 시 자동 비활성화 검토.
+- 격리 중에도 실행은 계속, 결과만 별도 셀로 격리. 완전 삭제 아님.
+- 재활성화: 연속 성공 패스 N회 + root cause fix PR merge.
+- CI 게이트 산업 표준: 격리 테스트만 실패 시 **빌드 통과** (exit 0).
+- 소유자 (named person) 지정 — 없으면 사실상 영구 삭제됨.
 
 ### 5. 시각적 회귀 (해당 시)
-- 가능하면 **LLM 의미 기반 비교** 우선 사용 — 기능적 의미 있는 변화만 골라냄. 도구 가용 시 시나리오 결과 스크린샷을 그 도구에 제출.
-- 픽셀 단순 비교만 가능하면 다음 셋 모두 적용 후 사용. 셋 중 하나라도 누락하면 false positive 폭주로 결함 신호가 묻힌다.
+**도구 선택 기준** — 다음 3 조건이 **모두** 충족되면 픽셀 diff + 마스킹·tolerance 로 충분:
+1. 컴포넌트 격리 (Storybook/Ladle 등)
+2. 동적 영역 없음 (타임스탬프·광고·실시간 차트 등)
+3. 뷰포트 고정
+
+셋 중 하나라도 불충족 (동적 콘텐츠, 다중 브라우저, 페이지 단위 풀 스크린) 이면 **AI semantic 도구** (Applitools Eyes Visual AI, Percy Review Agent 등) 검토. 2026 분포: Applitools = AI 4모드 (Strict/Layout/Content/Dynamic), Percy + Review Agent = pixel diff + AI 후처리, Chromatic/Argos/Lost Pixel/BackstopJS = pixel diff (의도적).
+
+픽셀 단순 비교 사용 시 다음 셋 **모두** 적용. 하나라도 누락하면 false positive 폭주로 결함 신호가 묻힌다.
   1. anti-aliasing tolerance 임계값
-  2. 동적 영역(타임스탬프·광고·실시간 차트) 마스킹
+  2. 동적 영역 마스킹
   3. 텍스트 영역 별도 처리
+
+**전환 실용 신호** (정량 산업 평균 cutoff 는 독립 출처 부재): 팀이 FP 리뷰를 스킵하거나 테스트를 비활성화하기 시작하는 시점. 정성 관찰상 빌드당 노출 diff 의 ~80~90% 이상이 FP 일 때 (예: 50 diffs 중 45개 FP) 리뷰 피로로 실질 붕괴.
 
 ### 6. 버그 발견 시
 재현 단계를 명확히. *"가끔 안 됨"* 같은 모호한 표현 금지. 다음 필드 모두 채움:
@@ -247,6 +315,9 @@ CRITICAL 1개 이상 + 재현성 DETERMINISTIC → 판정 FAIL. CRITICAL 이라�
 - **픽셀 diff 단독으로 visual fail 보고**. anti-aliasing tolerance + 동적 영역 마스킹 없이 보고하면 false positive.
 - **axe 결과만으로 a11y 통과 판정**. 자동 검출률 ~57% — 키보드 only 흐름 수동 점검 필수.
 - **Lighthouse 단일 측정으로 CWV 합격 단정**. 3회 이상 중간값 + 추세만 사용 (공식 벤치마크는 production 75th percentile).
+- **Oracle 없을 때 "추측 기대값" 으로 기록**. false oracle 은 PASS 신뢰도를 훼손. 명세 없으면 Oracle Strength Tier 로 내려가거나 명세 보강 요청.
+- **재시도 N=2~3 만으로 FLAKY 판정 안전 단정**. 낮은 flake rate (5% 미만) 는 N=51+ 필요 — 못 잡는 것이지 없는 것 아님.
+- **Self-healing locator 를 audit trail 없이 자동 적용**. false-heal 은 결함을 통과시키는 false-pass 를 만들어 명시적 실패보다 위험.
 - 보고서 외 파일 수정.
 
 마지막에 Learning Proposals (있으면). QA 관점의 재현 패턴 · 회귀 트랩 · flaky 원인 분류가 가장 가치 높음.

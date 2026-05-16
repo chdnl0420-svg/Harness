@@ -13,7 +13,13 @@
    - 모바일 앱이라면: release 빌드 산출물(APK/IPA) 을 device/emulator 에 설치 후 실행
    - 설치·실행 명령과 접근 경로(URL/실행 파일/명령) 를 `test-guide-<slug>.md` 의 "환경" 섹션에 production install 정보로 적어 둔다.
    - 설치/빌드 실패 시 사용자에게 보고 후 결정 요청 (BLOCKED).
-3. `harness-customer-user` 에 위임 (prior learning + **test-guide-<slug>.md 전문** prepend) — 도우미는 메인이 설치/실행해 둔 **실제 설치본**에 접속해서 테스트한다.
+3. `harness-customer-user` 에 위임:
+   - **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수.** 즉 다음을 Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend:
+     - `~/.claude/skills/harness/agents/learning/harness-customer-user.md` (공용)
+     - `<메인 repo>/.harness/agents/learning/harness-customer-user.md` (프로젝트, 있으면)
+   - **test-guide-<slug>.md 전문 prepend** (Prior Learning 헤더 다음, 본 작업 앞)
+   - 누락 시 도우미가 `[BLOCKED]` 로 거부.
+   - 도우미는 메인이 설치/실행해 둔 **실제 설치본**에 접속해서 테스트한다.
 4. 도우미가 "제품을 처음 본 일반인" 페르소나로 가이드 기능 흐름을 시도 — 스크린샷 + 클릭
 5. 보고서 작성 (첫인상, 막힌 지점, 헷갈린 단어 등)
 6. **게이트 아님** — 결과 통과/실패와 무관하게 다음 단계로

@@ -26,6 +26,10 @@
 - [2026-05-14] JavaScript 문자열 reverse 시 `split('')` 은 UTF-16 code unit 분해로 BMP 외 문자(U+10000+) 의 surrogate pair 를 깨뜨린다. code point 단위 보존이 필요하면 `Array.from(s)` 또는 `[...s]`. 단, ZWJ 시퀀스·결합문자의 grapheme cluster 보존은 `Intl.Segmenter` 가 필요하며 plan 단계에서 "어느 수준의 유니코드 정확성인지" (code unit / code point / grapheme cluster) 를 명시적 결정 사항으로 올려야 한다.
 - [2026-05-14] (training) Pre-mortem 기법 — plan 확정 전에 "이 프로젝트가 6개월 뒤 실패했다고 가정하고, 무엇이 잘못됐을지" 팀이 5분 동안 적는다. 사후 분석보다 hidden risk 표면화 효과 큼. 근거: Gary Klein, HBR 2007 "Performing a Project Premortem".
 - [2026-05-14] (training) 단계 목록을 작성한 뒤 의존성 토폴로지 정렬 → critical path 길이 = 최소 소요. critical path 위 항목은 병렬화·자원 집중 우선 대상. 근거: PMBOK CPM (Critical Path Method).
+- [2026-05-15] (training) **ADR 결정 항목에 `expires: YYYY-MM` 타임스탬프 부여** + 만료 시 재검증 / 이유 있는 면제 / 폐기 세 경로 중 하나 선택. 실측: 2개월 이내 아키텍처 결정의 20~25% 가 stale evidence 상태가 됨. 타임스탬프 없으면 가정 위반이 사고 시점까지 조용히 누적. AI 추천 자체는 자동으로 L0(추측) 등급으로 시작, 인간 검증 후 격상. 근거: arXiv 2601.21116 "AI-Assisted Engineering Should Track the Epistemic Status and Temporal Validity of Architectural Decisions".
+- [2026-05-15] (training) **Plan revision 자동 트리거 이중 게이팅** — ① ADR 증거 만료 (valid_until 초과) ② Change Failure Rate 상승 감지 (CI/CD). 둘 중 하나라도 발생하면 해당 phase 의 가정·의존성 목록을 재검증한다. "Big Design Up Front 후 변경 금지" 운영은 이 신호가 무시되어 사양-코드 분기 심화. 근거: arXiv 2601.21116 (evidence freshness); getdx.com "Measuring change failure rate in the era of AI-assisted engineering".
+- [2026-05-15] (training) **Context engineering — plan 은 외부 스크래치패드로 영속** — agent 가 plan 관련 메모를 컨텍스트 윈도우 외부에 (NOTES.md / memory) 지속 기록. 200k 토큰 초과 시 plan 절단·왜곡 발생. *"smallest possible set of high-signal tokens that maximize the likelihood of some desired outcome"* 원칙. 모든 실행에 immutable trace envelope (모델 버전·policy 버전·검색 artifact ID) 부착 권장. 근거: Anthropic "Effective Context Engineering for AI Agents" 2025; Jeremy Daly "Context Engineering for Commercial Agent Systems".
+- [2026-05-15] (training) **Plan readability 산업 표준 = Flesch-Kincaid 8th grade 이하** — 캘리포니아 정부 혁신허브 가이드 / Intuit Content Design 가이드 모두 8th grade (= 중학교 2학년) 이하 목표 명시. Intuit 은 5~8th grade. WCAG 2.2 SC 3.1.5: secondary education 수준 초과 시 단순화 버전 제공 의무. 본 도우미의 *"중·고등학생 가독성"* directive 와 정합. 근거: hub.innovation.ca.gov plain language; contentdesign.intuit.com readability; w3.org WCAG22 SC 3.1.5.
 
 ## Anti-patterns
 하면 안 되는 것.
@@ -37,6 +41,7 @@
 - [2026-05-14] "Open Questions" 섹션 생략하고 모든 것을 결정된 것처럼 기술하는 것은 hidden assumption anti-pattern — 구현 중 방향 전환 주원인. 근거: AI development patterns (PaulDuvall).
 - [2026-05-14] (training) Big Design Up Front — plan 의 모든 step 을 미리 fix 하고 구현 중 수정 금지. 학습 신호를 plan 갱신으로 흡수 못 해 사양과 코드 분기. 짧은 iteration + plan revision 트리거가 정답. 근거: Royce 1970 (waterfall 모델 자체가 반례로 제시됨); Boehm Spiral Model.
 - [2026-05-14] (training) "혹시 모르니까" 옵션 / 플래그 / 추상화 추가 = YAGNI 위반. 실제 두 번째 사용 사례가 등장하기 전 일반화는 잘못된 추상화로 굳어진다. 근거: Kent Beck XP "You Aren't Gonna Need It".
+- [2026-05-15] (training) **LLM 이 plan 에 기재한 패키지명·CLI 플래그·버전 번호를 검증 없이 확정 기재 금지** — 상업 모델도 패키지명 환각률 5.2% (16개 모델 / 576,000 코드 샘플), 오픈소스 21.7%. 환각 패키지 38% 는 실제 패키지 두 개를 합성한 이름이라 언뜻 그럴듯해 보임. 언어별: Python 15.8% / JavaScript 21.3% / Rust 24.74%. 모든 외부 의존성은 "설치 전 레지스트리(npm/PyPI/crates.io) 존재 확인" 을 plan 완료 조건에 명시 포함. RAG 적용 시 환각 49% 감소, Fine-tuning 83% 감소 (단 코드 품질 -26%), Ensemble 85% 감소. 근거: arXiv 2406.10279 "We Have a Package for You!"; arXiv 2409.20550 (LLM 코드 환각 8개 하위 유형).
 
 ## Project-Specific
 프로젝트별 컨벤션. 공용 파일에서는 비어 있음.

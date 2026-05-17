@@ -1,0 +1,264 @@
+# workflow.md 검토 리포트 (2026-05-15)
+
+> 검토 대상: `docs/workflow.md`
+> 방식: `harness-deep-researcher` 위임 (standard tier)
+> 호출 맥락: `/harness-plan` 안에서 사용자 요청 "workflow 검토 + 딥리서치 기반 개선안"
+> 환각·URL 위조: 없음. WebFetch 4회 모두 응답 수신.
+
+---
+
+## 요약
+
+harness skill 의 8단계 파이프라인은 **생성자-평가자 분리**, **외부 모델 교차검증(Codex)**, **페르소나 분리(QA vs 커스터머)** 면에서 2026 산업 모범 사례와 일치한다.
+
+그러나 5가지 빈틈이 있다.
+1. 5회 안전장치의 "동일 문제" 판정 기준이 없다 → 카운터가 실제론 작동 안 할 수 있다.
+2. step8 commit/push 실패 시 되돌아갈 경로가 없다.
+3. `--noagent` 모드에서 메인 Claude 가 읽어야 할 학습 데이터 경로가 명시 안 됐다.
+4. step7 (커스터머 테스트) 이 "전체 1회 고정" 인데, step3 루프가 많이 돌면 구현이 크게 바뀌어도 재실행 트리거가 없다.
+5. BLOCKED 이후 사용자 선택지(스킵/재시도/중단)가 다이어그램에 없다.
+
+Top 5 개선 권고는 아래 별도 섹션 참고.
+
+---
+
+## 검토 관점별 결과
+
+### 1. 8단계 파이프라인 구조
+
+**현재 설계:** init → 도메인 → 구현계획 → 구현 → 리뷰 → QA → 커스터머 → commit 의 선형 8단계.
+
+**외부 비교:**
+
+Anthropic 의 공식 harness 설계 (2026-04) 는 **3-agent 구조** — Planner, Generator, Evaluator. 단계 수보다 역할 분리가 핵심이다.
+
+> "decomposing the build into tractable chunks, and using structured artifacts to hand off context between sessions"
+> — anthropic.com/engineering/harness-design-long-running-apps
+
+**강점:** 8단계지만 실제로는 init / plan(step2-3) / act(step4) / judge(step5-7) / commit 의 5역할이다. Anthropic 의 3-agent 와 본질적으로 같다. step2 도메인 → step3 구현계획 분리는 추측 코딩을 막는 입력 게이트다.
+
+**약점:** 8단계 목록이 길어 보여 새 기여자가 무겁게 느낀다. complete 단계가 step8 에 이어져 공식 단계인지 후처리인지 불분명.
+
+**개선:** 흐름 다이어그램에 "역할 레이어" 라벨 한 줄 추가. "8단계지만 실제로는 5역할" 이 한눈에 보인다.
+
+---
+
+### 2. 게이트·루프·5회 안전장치
+
+**현재 설계:** step5 LGTM(승인) NO / step6 FAIL → step3 무제한 루프. 동일 문제 5회 반복 시 중단.
+
+**외부 비교:**
+
+> "maximum tool calls per conversation (15 is recommended) and a developer's Claude Code instance...burned through 1.67 billion tokens in 5 hours."
+> — dev.to/adamo_software (LLM 루프 방지 5 패턴)
+
+AWS 회로 차단기(circuit breaker) 패턴: 동일 유형 오류가 임계값 초과 시 자동 차단 → 사람에게 에스컬레이션.
+
+**강점:** 5회 안전장치 자체는 회로 차단기 패턴과 일치. 무제한 루프에 상한이 있다.
+
+**약점:**
+- "동일 문제" 판정 기준이 없다. 표현만 다르면 카운터가 리셋되는가?
+- 5회 기준의 근거가 없다. 산업 표준(15회) 보다 보수적인 이유 설명이 없다.
+- BLOCKED 분기가 메인 다이어그램에 없다.
+
+**개선:** workflow.md 다이어그램에 BLOCKED 분기 추가. 5회 카운터 판정 기준을 한 줄 각주로 붙인다. 예: _"동일 결함 = 동일 파일 + 동일 오류 유형 기준. 표현만 다르면 동일로 간주."_
+
+---
+
+### 3. QA(step6) 와 커스터머(step7) 분리
+
+**현재 설계:** step6 는 QA 전문가 페르소나, step7 은 "제품 처음 본 일반인" 페르소나(production 빌드). step7 은 전체 1회 고정.
+
+**외부 비교 (NN/g, IxDF, PMC):**
+
+- Heuristic Evaluation (휴리스틱 평가, 원칙 기반 전문가 검토) → step6 QA 와 대응
+- Cognitive Walkthrough (인지 통과, 태스크 기반 첫 사용자 시뮬레이션) → step7 커스터머 와 대응
+- 두 방법을 분리해 순서대로 적용하는 것이 UX 학계 권고다.
+
+> "Cognitive walkthroughs focus on people, testing whether first-time users can understand and complete tasks without guidance"
+> — IxDF
+
+**강점:** 페르소나 분리가 UX 학계 모범 사례와 정확히 일치. step7 이 production 빌드를 요구하는 점이 강하다 (dev 환경 대체를 명시적으로 금지).
+
+**약점:**
+- step7 "전체 1회" 가 절대 고정. step3 루프 15회 이상 시 구현이 크게 바뀌어도 재실행 트리거가 없다.
+- step7 결과가 "게이트 아님" 이라서 발견된 심각한 UX 문제의 피드백 통로가 workflow.md 메인에 없다 (step7 상세 문서엔 있음).
+
+**개선:** 다이어그램에 step7 하단 "(중대 UX 문제 발견 시 → 사용자 결정: 새 워크플로우로 처리)" 한 줄 추가.
+
+---
+
+### 4. `--noagent` 모드 설계
+
+**현재 설계:** 모든 harness-* 도우미(subagent) 호출 금지. 학습 데이터 자동 prepend(앞에 끼워 넣기) 손실 → 메인 Claude 가 직접 읽음. Codex CLI 는 그대로.
+
+**외부 비교:**
+
+- 단일 컨텍스트 내 모든 정보 때려 넣으면 "lost in the middle" 현상 발생 → 모델이 중간 내용 무시.
+- multi-agent 는 토큰 15배 소비 (Anthropic blog).
+
+**강점:** `--noagent` 의 존재 자체가 올바른 설계. "어떻게 수행하는가만 바꾼다, 어떤 step 을 거치는가는 바꾸지 않는다" 원칙이 명확.
+
+**약점:**
+- "메인 Claude 가 해당 step 시작 전 직접 읽어와 컨텍스트에 반영" — 어느 파일을 읽는지 경로가 없다.
+- step6/step7 에서 `browser-qa` skill 이 없을 때 "메인이 일반인 흉내" 는 사실상 BLOCKED 와 같다. 분기가 모호.
+- 학습 데이터를 메인 컨텍스트에 올리면 컨텍스트 창 소비 급증. 이 비용 트레이드오프가 문서에 없다.
+
+**개선:** workflow.md L29 에 구체 경로 추가. 예: _"메인 Claude 가 `~/.claude/skills/harness/agents/learning/<agent-name>.md` 를 직접 Read 해 컨텍스트에 올린다."_
+
+---
+
+### 5. Codex CLI 가 외부 도구로 분리된 점
+
+**현재 설계:** step5 리뷰를 Codex CLI(WSL bash wrapper) 로 수행. 도우미 아님. Codex 불가 시 fallback(대안): code-review skill.
+
+**외부 비교:**
+
+> "Separating the agent doing the work from the agent judging it proves to be a strong lever"
+> — anthropic.com/engineering/harness-design-long-running-apps
+
+Claude + GPT 교차검증 패턴이 2026-04 기준 산업 전반에서 확산 중 (GeekWire, MindStudio 기사). 단일 모델 대비 약 13.8% 개선 (GPT-5.2 evaluator 기준 보고).
+
+**강점:** Claude 가 생성한 코드를 Codex(GPT 계열) 가 검토하는 구조는 자기편향(self-review bias) 방지에 가장 효과적. WSL wrapper 로 분리해 컨텍스트 오염 없이 독립 실행.
+
+**약점:**
+- WSL + Codex CLI 의존: macOS/Linux 사용자나 인증 실패 시 step5 가 막힌다.
+- fallback 시 교차검증 효과가 사라진다는 사실이 workflow.md 에 명시 안 됐다.
+- Codex CLI 버전 고정 정책 없음 → wrapper 출력 형식 변동 시 LGTM 추출 룰 오작동 가능.
+
+**개선:** workflow.md 부록에 _"Codex fallback 시 교차검증 효과 손실 — 이 사실을 사용자에게 알리고 진행 의사를 확인"_ 1줄 추가.
+
+---
+
+### 6. Step 스킵·통합 금지 조항
+
+**현재 설계:** step 자체 규칙에 없는 스킵은 모두 위반. 사용자 요청도 거절. 위반 시 즉시 중단 + 보고.
+
+**외부 비교 (Anthropic):**
+
+> "As capabilities improve (Opus 4.5→4.6), certain scaffolding becomes unnecessary overhead. The evaluator's necessity depends on task difficulty relative to current model baseline—not a fixed requirement."
+> — anthropic.com/engineering/harness-design-long-running-apps
+
+이는 "모델 능력에 따라 일부 단계는 overhead(불필요 부하) 가 될 수 있다" 는 뉘앙스로, 현재의 "절대 스킵 금지" 와 방향이 다르다.
+
+**강점:** 스킵 금지 없으면 "간단하니 생략" 의 누적이 품질 보증 구조 전체를 무력화. 위반 즉시 보고 정책이 있어 조용한 실패(silent failure) 차단.
+
+**약점:**
+- "사용자 자율성 vs 품질 보장" 트레이드오프가 문서에 없다. 거절 이유를 모르면 사용자 불만 발생.
+- 모델 능력 향상 시 일부 step 이 overhead 가 된다 (Anthropic 인용). 재검토 트리거가 없다.
+
+**개선:** CRITICAL 섹션 상단에 한 줄 이유 추가. _"각 step 은 하나의 품질 게이트다. 게이트를 건너뛰면 결함이 다음 step 으로 전파되어 루프 비용이 기하급수적으로 증가한다."_
+
+---
+
+### 7. 문서 자체 품질
+
+**강점:** ASCII 다이어그램이 분기 조건을 시각화. 실행 옵션 표가 단일 뷰로 정리. `test-guide-format.md` 분리로 가이드 자체 오염 방지.
+
+**약점:**
+
+A) step8 commit/push 실패 시 경로 없음. git push reject(거절), 네트워크 오류 등이 일어나면 워크플로우가 멈춘다.
+
+B) step7 도중 사용자 인터럽트 처리 없음. 다이어그램에 명시 안 됨.
+
+C) BLOCKED 이후 사용자 선택지가 다이어그램에 없음.
+
+D) step2 도메인 설계 수정 분기가 단방향 화살표만 있음.
+
+E) Codex 부록 섹션이 본문과 분리감 — Codex 는 step5 의 핵심 도구임에도 부록 취급.
+
+**개선(최우선):** 흐름 다이어그램에 BLOCKED 분기, step8 실패 분기 추가.
+
+---
+
+## Top 5 우선순위 개선 권고
+
+### 1. BLOCKED / step8 실패 분기를 흐름 다이어그램에 추가 (impact: HIGH, ease: HIGH)
+
+**위치:** workflow.md L80-99 흐름 다이어그램
+
+**개선:**
+```
+├─ BLOCKED ──> 사용자 결정 요청
+│              (A) 환경 수정 후 재시도
+│              (B) 이 step 스킵 승인 (사용자 명시적 동의 필요)
+│              (C) 워크플로우 중단
+
+step8. commit / push
+   ├─ 성공 → complete
+   └─ 실패 → 사용자에게 오류 보고 후 결정 요청
+              (재시도 / 브랜치 수정 / 로컬 commit 만 완료로 처리)
+```
+
+이유: 다이어그램에 분기가 없으면 메인 Claude 가 임의로 PASS 처리하거나 멈춰버린다.
+
+---
+
+### 2. 5회 "동일 문제" 판정 기준 명시 (impact: HIGH, ease: HIGH)
+
+**위치:** workflow.md L76, L84
+
+**개선:** "동일 문제 = 동일 파일 경로 + 동일 오류 유형(예: 타입 오류, null 참조, 권한 오류)의 조합. 표현이 달라도 유형과 위치가 같으면 동일로 간주. 카운터는 step5/step6 가 공유하지 않고 각자 독립으로 카운트."
+
+이유: 기준이 없으면 안전장치가 실제로 작동하지 않는다.
+
+---
+
+### 3. `--noagent` 모드 학습 데이터 경로 명시 (impact: MEDIUM, ease: HIGH)
+
+**위치:** workflow.md L29
+
+**개선:** "메인 Claude 가 `~/.claude/skills/harness/agents/learning/harness-<agent-name>.md` 를 직접 Read 한 뒤 컨텍스트에 반영한다. step6 면 `harness-qa-engineer.md`, step7 면 `harness-customer-user.md`."
+
+이유: 경로가 없으면 메인 Claude 가 학습 데이터를 찾지 못하거나 잘못된 파일을 읽는다.
+
+---
+
+### 4. step7 재실행 조건(선택) 추가 (impact: MEDIUM, ease: MEDIUM)
+
+**위치:** workflow.md L90-93
+
+**개선:** "전체 1회 원칙을 유지하되, step3 루프가 10회 이상 발생해 구현이 최초 도메인 설계와 크게 달라진 경우, 메인 Claude 는 사용자에게 step7 재실행 여부를 제안할 수 있다."
+
+이유: 구현이 크게 바뀐 제품을 첫 커스터머 테스트 결과로 판단하는 것은 의미가 없다.
+
+---
+
+### 5. Codex fallback 시 교차검증 효과 손실 고지 (impact: MEDIUM, ease: HIGH)
+
+**위치:** workflow.md L125-133 부록 또는 step5 기본 모드 표 비고 칸
+
+**개선:** "Codex fallback 시 동일 모델(Claude) 이 구현과 리뷰를 모두 수행하므로 자기편향 제거 효과가 사라진다. 이 사실을 사용자에게 알린 뒤 진행 의사를 확인한다."
+
+이유: fallback 은 기능 유지지만 품질 보증 수준 저하. 사용자가 인식해야 한다.
+
+---
+
+## Open Questions (조사로 해소 못한 것)
+
+- **step7 재실행 임계값:** 10회를 권고했으나 실측 기반 수치가 아니다. 실제 운영 후 데이터로 조정 필요.
+- **5회 vs 15회:** 산업 표준(최대 15 tool calls)과 다른 5회를 선택한 설계 의도가 문서에 없다. 비용 보수성 때문인지 품질 기준 때문인지 명확히 해야 한다.
+- **BLOCKED 시 "스킵 승인" 가능 여부:** "Step 스킵·통합 금지" 조항과 충돌. 사용자 승인 시 예외인가? 명시적 예외 규정이 필요하다.
+
+---
+
+## Inferences (검증된 fact 아님)
+
+- *Inferred:* 5회 안전장치는 비용 보수성 기반 직관적 선택으로 보임. 측정 데이터 없음.
+- *Inferred:* `--noagent` 에서 학습 데이터를 메인 컨텍스트에 올리면 컨텍스트 창의 약 15-20% 소모 가능. 측정 미실시.
+
+---
+
+## 출처
+
+| # | URL | 신뢰도 | 사용처 |
+|---|-----|--------|--------|
+| 1 | https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents | HIGH | 관점 1, 4 |
+| 2 | https://www.anthropic.com/engineering/harness-design-long-running-apps | HIGH | 관점 1, 3, 5, 6 |
+| 3 | https://dev.to/adamo_software/tool-use-api-design-for-llms-5-patterns-that-prevent-agent-loops-and-silent-failures-f29 | MEDIUM | 관점 2 |
+| 4 | https://www.nngroup.com/articles/cognitive-walkthroughs/ | HIGH | 관점 3 |
+| 5 | https://pmc.ncbi.nlm.nih.gov/articles/PMC9206256/ | HIGH | 관점 3 |
+| 6 | https://ixdf.org/literature/topics/heuristic-evaluation | HIGH | 관점 3 |
+| 7 | https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/ | MEDIUM | 관점 1 |
+| 8 | https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/circuit-breaker.html | HIGH | 관점 2 |
+| 9 | https://www.augmentcode.com/guides/ai-agent-loop-token-cost-context-constraints | MEDIUM | 관점 4 |

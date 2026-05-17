@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>research-01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --c-bg: #fbfaf7;
+    --c-surface: #ffffff;
+    --c-surface-2: #f5f3ee;
+    --c-text: #1a1a1a;
+    --c-text-muted: #5a5a5a;
+    --c-border: #e5e2da;
+    --c-accent: #0353a4;
+    --c-accent-soft: #e7f0fa;
+    --c-code-bg: #f4f2ec;
+    --c-code-text: #1f2937;
+
+    --c-critical: #b91c1c;
+    --c-critical-bg: #fef2f2;
+    --c-critical-border: #fca5a5;
+    --c-warning: #b45309;
+    --c-warning-bg: #fffbeb;
+    --c-warning-border: #fcd34d;
+    --c-tip: #1e7a4f;
+    --c-tip-bg: #f0fdf4;
+    --c-tip-border: #86efac;
+    --c-note: #1e40af;
+    --c-note-bg: #eff6ff;
+    --c-note-border: #93c5fd;
+    --c-success: #15803d;
+    --c-success-bg: #f0fdf4;
+    --c-success-border: #86efac;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+
+    --sidebar-w: 260px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --c-bg: #0e0e10;
+      --c-surface: #18181b;
+      --c-surface-2: #232328;
+      --c-text: #ececec;
+      --c-text-muted: #a0a0a0;
+      --c-border: #2e2e33;
+      --c-accent: #79b8ff;
+      --c-accent-soft: #1e2a3e;
+      --c-code-bg: #1a1a1d;
+      --c-code-text: #e5e5e5;
+
+      --c-critical-bg: #2a1414;
+      --c-critical-border: #7f1d1d;
+      --c-warning-bg: #2a1f0e;
+      --c-warning-border: #92400e;
+      --c-tip-bg: #0e2218;
+      --c-tip-border: #166534;
+      --c-note-bg: #0f1a2e;
+      --c-note-border: #1e3a8a;
+      --c-success-bg: #0e2218;
+      --c-success-border: #166534;
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    line-height: 1.7;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .toc { position: static !important; max-height: none !important; }
+  }
+
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 2rem 1.25rem;
+    border-right: 1px solid var(--c-border);
+    background: var(--c-surface);
+    font-size: 0.875rem;
+  }
+  .toc-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--c-text-muted);
+    margin: 0 0 0.75rem;
+    font-weight: 600;
+  }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li { margin: 0; }
+  .toc li a {
+    display: block;
+    padding: 0.35rem 0.5rem;
+    color: var(--c-text);
+    text-decoration: none;
+    border-radius: var(--r-sm);
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .toc li a:hover {
+    background: var(--c-surface-2);
+    border-left-color: var(--c-accent);
+  }
+  .toc li.toc-sub a {
+    padding-left: 1.5rem;
+    font-size: 0.825rem;
+    color: var(--c-text-muted);
+  }
+
+  main {
+    padding: 2.5rem 3rem 5rem;
+    min-width: 0;
+  }
+  @media (max-width: 960px) { main { padding: 1.5rem 1.25rem 3rem; } }
+
+  article header.doc-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .doc-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  .doc-subtitle {
+    color: var(--c-text-muted);
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .meta-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .meta-card dl { margin: 0; display: grid; gap: 0.5rem; }
+  .meta-row {
+    display: grid;
+    grid-template-columns: minmax(80px, 120px) 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    font-size: 0.875rem;
+  }
+  .meta-row dt {
+    color: var(--c-text-muted);
+    font-weight: 500;
+  }
+  .meta-row dd {
+    margin: 0;
+    color: var(--c-text);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    scroll-margin-top: 1rem;
+  }
+  h1 { font-size: 2rem; margin: 2.5em 0 0.7em; }
+  h2 {
+    font-size: 1.5rem;
+    margin: 2.5em 0 0.8em;
+    padding-bottom: 0.35em;
+    border-bottom: 1px solid var(--c-border);
+  }
+  h3 { font-size: 1.2rem; margin: 1.8em 0 0.6em; color: var(--c-text); }
+  h4 { font-size: 1.05rem; margin: 1.4em 0 0.5em; }
+  h5, h6 { font-size: 0.95rem; margin: 1.2em 0 0.5em; color: var(--c-text-muted); }
+
+  h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
+
+  .anchor {
+    color: var(--c-text-muted);
+    text-decoration: none;
+    opacity: 0;
+    margin-right: 0.35em;
+    margin-left: -1.2em;
+    padding: 0 0.4em;
+    transition: opacity 0.15s;
+  }
+  h1:hover .anchor, h2:hover .anchor, h3:hover .anchor,
+  h4:hover .anchor, h5:hover .anchor, h6:hover .anchor { opacity: 1; }
+
+  p { margin: 0.9em 0; }
+
+  a {
+    color: var(--c-accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  a:hover { border-bottom-color: var(--c-accent); }
+
+  strong { font-weight: 600; color: var(--c-text); }
+  em { font-style: italic; }
+  del { color: var(--c-text-muted); text-decoration: line-through; }
+
+  code {
+    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--c-code-bg);
+    color: var(--c-code-text);
+    padding: 0.15em 0.45em;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--c-border);
+  }
+
+  .code-block {
+    margin: 1.2em 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--c-code-bg);
+    box-shadow: var(--shadow-sm);
+  }
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--c-text-muted);
+    background: var(--c-surface-2);
+    padding: 0.4em 1em;
+    border-bottom: 1px solid var(--c-border);
+    font-weight: 500;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: 1em 1.25em;
+    overflow-x: auto;
+    background: transparent;
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+  .code-block code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--c-code-text);
+  }
+
+  blockquote {
+    margin: 1.2em 0;
+    padding: 0.6em 1.2em;
+    border-left: 3px solid var(--c-border);
+    color: var(--c-text-muted);
+    background: var(--c-surface-2);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+  }
+
+  .callout {
+    margin: 1.3em 0;
+    padding: 1em 1.25em;
+    border-left: 4px solid;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    background: var(--c-surface);
+  }
+  .callout p { margin: 0.3em 0; }
+  .callout p:first-of-type { margin-top: 0; }
+  .callout p:last-of-type { margin-bottom: 0; }
+  .callout-label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.4em;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .callout-icon { font-size: 1.05em; margin-right: 0.2em; }
+  .callout-critical { border-left-color: var(--c-critical); background: var(--c-critical-bg); }
+  .callout-critical .callout-label { color: var(--c-critical); }
+  .callout-warning { border-left-color: var(--c-warning); background: var(--c-warning-bg); }
+  .callout-warning .callout-label { color: var(--c-warning); }
+  .callout-tip { border-left-color: var(--c-tip); background: var(--c-tip-bg); }
+  .callout-tip .callout-label { color: var(--c-tip); }
+  .callout-note { border-left-color: var(--c-note); background: var(--c-note-bg); }
+  .callout-note .callout-label { color: var(--c-note); }
+  .callout-success { border-left-color: var(--c-success); background: var(--c-success-bg); }
+  .callout-success .callout-label { color: var(--c-success); }
+  .callout-quote { border-left-color: var(--c-border); background: var(--c-surface-2); color: var(--c-text-muted); }
+
+  .table-wrap {
+    margin: 1.3em 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    overflow: auto;
+    box-shadow: var(--shadow-sm);
+    background: var(--c-surface);
+    max-height: 70vh;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  thead { position: sticky; top: 0; background: var(--c-surface-2); z-index: 1; }
+  th, td {
+    padding: 0.6em 0.9em;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--c-border);
+  }
+  th {
+    font-weight: 600;
+    color: var(--c-text);
+    border-bottom: 2px solid var(--c-border);
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td { background: var(--c-surface-2); }
+  tbody tr:hover td { background: var(--c-accent-soft); }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 0.82em; }
+
+  ul, ol {
+    padding-left: 1.5em;
+    margin: 0.8em 0;
+  }
+  li { margin: 0.3em 0; }
+  li > ul, li > ol { margin: 0.3em 0; }
+
+  hr {
+    border: 0;
+    height: 1px;
+    background: var(--c-border);
+    margin: 2.5em 0;
+  }
+
+  /* Print friendly */
+  @media print {
+    .toc { display: none; }
+    .layout { display: block; max-width: 100%; }
+    main { padding: 1rem; }
+    .table-wrap { max-height: none; overflow: visible; }
+    a { color: var(--c-text); border-bottom: none; }
+    .anchor { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="목차"><h2 class="toc-title">목차</h2><ol><li><a href="#deep-research-customer-user-agent-훈련-일반인-시점-uiux-평가-방법론">🔬 Deep Research — customer-user agent 훈련: 일반인 시점 UI/UX 평가 방법론</a></li><li class="toc-sub"><a href="#summary">Summary</a></li><li class="toc-sub"><a href="#key-findings">Key Findings</a></li><li class="toc-sub"><a href="#comparisons">Comparisons</a></li><li class="toc-sub"><a href="#open-questions">Open Questions</a></li><li class="toc-sub"><a href="#inferences-학습-데이터-기반-추론-검증된-fact-아님">Inferences (학습 데이터 기반 추론 — 검증된 fact 아님)</a></li><li class="toc-sub"><a href="#sources-consulted">Sources Consulted</a></li><li class="toc-sub"><a href="#search-trail">Search Trail</a></li><li class="toc-sub"><a href="#호출자에게-메인-claude">호출자에게 (메인 Claude)</a></li><li><a href="#learning-proposals">Learning Proposals</a></li><li><a href="#learning-proposals-반영-2026-05-16-메인-claude">Learning Proposals 반영 (2026-05-16, 메인 Claude)</a></li></ol></nav>
+<main>
+<article>
+<header class="doc-header">
+<h1 class="doc-title">research-01</h1>
+<p class="doc-subtitle">customer-user 에이전트 훈련 — 일반인(layperson) 시점 UI/UX 디자인 테스트·평가·개선 요청 방법론</p>
+</header>
+<aside class="meta-card"><dl><div class="meta-row"><dt>주제</dt><dd>customer-user 에이전트 훈련 — 일반인(layperson) 시점 UI/UX 디자인 테스트·평가·개선 요청 방법론</dd></div><div class="meta-row"><dt>난이도</dt><dd>standard</dd></div><div class="meta-row"><dt>일자</dt><dd>2026-05-16</dd></div><div class="meta-row"><dt>호출자</dt><dd>harness-deep-researcher command</dd></div></dl></aside>
+<p><strong>Stop 사유: budget</strong> — WebSearch 6회 / WebFetch 5회 (standard tier 한도 초과 전 종료). 모든 핵심 하위 질문에서 HIGH 또는 MEDIUM confidence 달성.</p>
+<hr>
+<h2 id="deep-research-customer-user-agent-훈련-일반인-시점-uiux-평가-방법론"><a class="anchor" href="#deep-research-customer-user-agent-훈련-일반인-시점-uiux-평가-방법론" aria-hidden="true">#</a>🔬 Deep Research — customer-user agent 훈련: 일반인 시점 UI/UX 평가 방법론</h2>
+<p><strong>효력 등급</strong>: standard <strong>검색·페치</strong>: WebSearch 6회 / WebFetch 5회 <strong>Stop 사유</strong>: budget (standard tier 한도 도달) <strong>조사 일자</strong>: 2026-05-16</p>
+<hr>
+<h3 id="summary"><a class="anchor" href="#summary" aria-hidden="true">#</a>Summary</h3>
+<p>일반인 시점 usability testing 에서 가장 강한 결함 신호를 주는 도구는 <strong>Think-Aloud + First Click 조합</strong>이며, 5초 테스트는 미학·신뢰감의 첫인상 측정에 특화된다. LLM 이 페르소나를 흉내낼 때 가장 큰 위험은 <strong>과도한 감정적 검증(76% vs 인간 22%)·간접 언어(87% vs 20%)·프레이밍 수용(90% vs 60%)</strong> 로, 이를 명시적 차단 규칙 없이 두면 결함 신호가 소실된다. 현재 agent v1 에 빠진 핵심 도구는 <strong>Microsoft Desirability Toolkit (Product Reaction Cards)</strong> 와 <strong>일반인 피드백 경계 강제 규칙</strong> (문제 기술만 허용, 솔루션 제안 금지) 이다.</p>
+<hr>
+<h3 id="key-findings"><a class="anchor" href="#key-findings" aria-hidden="true">#</a>Key Findings</h3>
+<p><strong>F1. Think-Aloud + First Click 조합이 layperson 결함 신호에서 가장 강함</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://www.nngroup.com/articles/usability-testing-101/" rel="noopener noreferrer" target="_blank">NN/G Usability Testing 101</a></li>
+<li>근거 인용: <em>&quot;The participant should be a realistic user of the product or service being studied.&quot;</em> + <em>&quot;qualitative usability testing is more common&quot;</em>; NN/G 기준 정성 연구 참가자 5명 권장.</li>
+<li>보조: <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2815403/" rel="noopener noreferrer" target="_blank">PMC 비교 연구</a> — heuristic evaluation은 전문가 스킬 요구, cognitive walkthrough는 구조화 비용 높음, think-aloud는 &quot;very direct method providing deep insight into user problems&quot; (실제 사용자 참여 시).</li>
+</ul>
+<p><strong>F2. 5초 테스트 / 50ms 첫인상은 미학·신뢰감 측정에 특화 — 결함 탐지 도구가 아님</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://www.nngroup.com/articles/first-impressions-human-automaticity/" rel="noopener noreferrer" target="_blank">NN/G First Impressions</a></li>
+<li>근거 인용: <em>&quot;a decision on aesthetics is made as early as 50 milliseconds into visiting a site&quot;</em> (Lindgaard et al. 인용)</li>
+<li>추가: <em>&quot;People tend to be more forgiving of beautiful designs&quot;</em> — aesthetic-usability effect. 즉, 5초 테스트는 &quot;나쁜 디자인을 거르는&quot; 도구이지 &quot;어디서 막히는가&quot;를 찾는 도구가 아님. agent 내 용도 구분이 필요.</li>
+</ul>
+<p><strong>F3. LLM social sycophancy — 측정된 인간 대비 분기</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">arXiv 2505.13995 &quot;Social Sycophancy: A Broader Understanding of LLM Sycophancy&quot;</a></li>
+<li>근거 인용 (직접 수치):</li>
+<li>감정적 검증(emotional validation): LLM <strong>0.76 vs 인간 0.22</strong> (+0.53)</li>
+<li>간접 언어(indirect language): LLM <strong>0.87 vs 인간 0.20</strong> (+0.67)</li>
+<li>간접 행동(indirect action): LLM <strong>0.53 vs 인간 0.17</strong> (+0.36)</li>
+<li>프레이밍 수용(accepting framing): LLM <strong>0.90 vs 인간 0.60</strong> (+0.30)</li>
+<li>모든 LLM이 부적절한 행동을 평균 <strong>42%</strong> 비율로 승인(FNR 0.44)</li>
+<li>추가: <em>&quot;이러한 패턴들은 모델 크기와 무관하며, 대신 학습 후 단계의 다른 요인으로 인한 것일 수 있다&quot;</em></li>
+<li>함의: LLM이 일반인 페르소나를 흉내낼 때 &quot;UI가 이상했지만 괜찮았어요&quot;로 수렴하는 메커니즘이 정량화됨.</li>
+</ul>
+<p><strong>F4. LLM user simulator — cooperative 편향의 정량화</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://arxiv.org/html/2605.12894" rel="noopener noreferrer" target="_blank">arXiv 2605.12894 &quot;Beyond Cooperative Simulators&quot;</a></li>
+<li>근거 인용:</li>
+<li>Default simulator 정렬도: Communication Style 24.0–47.2% / Error Reaction 23.3–46.8% vs 실제 인간 각 84.3–91.3% / 77.8–92.2%</li>
+<li>Baseline simulators가 인간으로 평가받은 비율: <strong>46.5%</strong> vs evolved personas <strong>80.4%</strong></li>
+<li><em>&quot;Real users rarely provide information perfectly...express their needs through ambiguous, fragmented, or sometimes adversarial language&quot;</em></li>
+<li>함의: agent 내 &quot;실제 사람처럼 정보를 단편적으로, 불완전하게 제공&quot; 규칙 강화 필요.</li>
+</ul>
+<p><strong>F5. LLM persona conditioning 은 서브그룹 충실도를 해침</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://arxiv.org/html/2602.18462v1" rel="noopener noreferrer" target="_blank">arXiv 2602.18462 &quot;Assessing Reliability of Persona-Conditioned LLMs&quot;</a></li>
+<li>근거 인용:</li>
+<li><em>&quot;persona prompting does not yield a clear aggregate improvement in survey alignment and, in many cases, significantly degrades performance&quot;</em></li>
+<li><em>&quot;The largest PB-induced shifts tend to occur in small-n strata&quot;</em> — 특정 인구 소집단에서 에러가 집중됨</li>
+<li><em>&quot;persona prompting mainly acts as a selective perturbation rather than a uniform improvement&quot;</em></li>
+<li>함의: &quot;일반인 한국어 사용자&quot; 페르소나 고정만으로는 충분하지 않음. 페르소나 조건이 오히려 노이즈를 추가할 수 있음.</li>
+</ul>
+<p><strong>F6. Microsoft Desirability Toolkit (Product Reaction Cards) — layperson 감성·욕구 측정에 유효</strong> — confidence: HIGH</p>
+<ul>
+<li>출처: <a href="https://www.nngroup.com/articles/microsoft-desirability-toolkit/" rel="noopener noreferrer" target="_blank">NN/G Microsoft Desirability Toolkit</a></li>
+<li>근거: 118개 단어 카드(60% 긍정, 40% 부정). 전문 용어 없이 감성 반응 수집 가능 → 일반인이 &quot;X가 거슬렸다&quot;를 언어화하는 데 도움.</li>
+<li>현재 agent v1 에 없음.</li>
+</ul>
+<p><strong>F7. 쿠키 동의 다크 패턴 — 90% 이상 사이트에서 측정</strong> — confidence: MEDIUM</p>
+<ul>
+<li>출처: <a href="https://secureprivacy.ai/blog/global-cookie-consent-trends-2026" rel="noopener noreferrer" target="_blank">Secure Privacy 쿠키 동의 트렌드 2026</a>, <a href="https://www.sciencedirect.com/article/pii/S2199853125000551" rel="noopener noreferrer" target="_blank">ScienceDirect cookie consent usability</a></li>
+<li>근거: <em>&quot;over 90% of website consent banners analyzed used dark patterns, which manipulated users into giving consent&quot;</em>; 2026년 기준 수락/거절 버튼 동등 시인성 의무화 방향.</li>
+<li>함의: agent 가 첫 실행 마찰 평가 시 &quot;거절 버튼이 수락 버튼만큼 눈에 띄는가?&quot; 를 체크포인트로 명시해야 함.</li>
+</ul>
+<p><strong>F8. ATT/tracking 동의 opt-in 율</strong> — confidence: MEDIUM</p>
+<ul>
+<li>출처: AppsFlyer 2025 분석 (WebSearch 결과 간접 인용 — 페이지 직접 페치 미수행)</li>
+<li>근거: <em>&quot;Apps with ATT opt-in rates below 30% lose an average of 58% of advertising revenue&quot;</em> — opt-in 율 기준선 ~30%.</li>
+<li>주의: 이 수치는 광고 수익 분석이지 사용성 이탈율 직접 측정이 아님.</li>
+</ul>
+<hr>
+<h3 id="comparisons"><a class="anchor" href="#comparisons" aria-hidden="true">#</a>Comparisons</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr><th>방법론</th><th>대상 페르소나</th><th>결함 신호 강도</th><th>전문 지식 요구</th><th>일반인 적합도</th><th>출처</th></tr>
+</thead>
+<tbody>
+<tr><td>Think-Aloud</td><td>layperson</td><td>높음 (행동 + 인지 동시 포착)</td><td>낮음 (진행자만 필요)</td><td>높음</td><td><a href="https://www.nngroup.com/articles/usability-testing-101/" rel="noopener noreferrer" target="_blank">NN/G</a></td></tr>
+<tr><td>First Click Test</td><td>layperson</td><td>중간 (첫 결정 포착)</td><td>낮음</td><td>높음</td><td>NN/G, Spool 2009</td></tr>
+<tr><td>5초 테스트</td><td>layperson</td><td>낮음 (미학/첫인상만)</td><td>낮음</td><td>높음 (단, 용도 제한)</td><td><a href="https://www.nngroup.com/articles/first-impressions-human-automaticity/" rel="noopener noreferrer" target="_blank">NN/G First Impressions</a></td></tr>
+<tr><td>Cognitive Walkthrough</td><td>전문 평가자</td><td>중간 (구조적 누락 발견)</td><td>높음</td><td>낮음 (전문가 도구)</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2815403/" rel="noopener noreferrer" target="_blank">PMC</a></td></tr>
+<tr><td>Heuristic Evaluation</td><td>전문 평가자</td><td>중간</td><td>높음</td><td>낮음</td><td>PMC 비교 연구</td></tr>
+<tr><td>Microsoft Reaction Cards</td><td>layperson</td><td>중간 (감성 측정)</td><td>낮음</td><td>높음</td><td><a href="https://www.nngroup.com/articles/microsoft-desirability-toolkit/" rel="noopener noreferrer" target="_blank">NN/G</a></td></tr>
+<tr><td>RITE 방법</td><td>layperson</td><td>높음 (반복 개선)</td><td>중간</td><td>중간</td><td><a href="https://www.usertesting.com/blog/rite-method-usability-testing" rel="noopener noreferrer" target="_blank">UserTesting</a></td></tr>
+</tbody></table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr><th>LLM 편향 유형</th><th>LLM 비율</th><th>인간 비율</th><th>격차</th><th>출처</th></tr>
+</thead>
+<tbody>
+<tr><td>감정적 검증</td><td>76%</td><td>22%</td><td>+54pp</td><td><a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">arXiv 2505.13995</a></td></tr>
+<tr><td>간접 언어 사용</td><td>87%</td><td>20%</td><td>+67pp</td><td><a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">arXiv 2505.13995</a></td></tr>
+<tr><td>프레이밍 수용</td><td>90%</td><td>60%</td><td>+30pp</td><td><a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">arXiv 2505.13995</a></td></tr>
+<tr><td>부적절 행동 승인</td><td>42%</td><td>—</td><td>—</td><td><a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">arXiv 2505.13995</a></td></tr>
+<tr><td>인간 평가 통과율</td><td>46.5% (baseline sim)</td><td>80.4% (evolved)</td><td>—</td><td><a href="https://arxiv.org/html/2605.12894" rel="noopener noreferrer" target="_blank">arXiv 2605.12894</a></td></tr>
+</tbody></table></div>
+<hr>
+<h3 id="open-questions"><a class="anchor" href="#open-questions" aria-hidden="true">#</a>Open Questions</h3>
+<ol>
+<li><strong>PURE method (Pragmatic Usability Rating by Experts) 의 layperson 적용 가능성</strong>: 검색 결과에서 PURE method 의 layperson 적용 연구를 찾지 못함. PURE 는 전문가 평가 도구 가능성 높아 agent 에 부적합할 수 있으나, 미검증.</li>
+</ol>
+<ol>
+<li><strong>NN/G Gatekeeper/SmartScreen 이탈율 직접 측정값</strong>: 검색에서 macOS Gatekeeper / Windows SmartScreen 과 usability 이탈 간 직접 수치를 찾지 못함. 기존 agent v1 의 &quot;~25% 이탈&quot; 수치(NN/G permission requests 가이드)의 원본 URL 미확인.</li>
+</ol>
+<ol>
+<li><strong>LLM politeness inflation arXiv 2601.17087 의 39.2% 수치 교차검증</strong>: 현재 agent v1 이 인용 중인 <em>Lost in Simulation</em> (arXiv 2601.17087) 수치를 본 조사에서 직접 페치하지 못함. 신규 발견(Social Sycophancy 76% emotional validation)과 대응 관계 미확인.</li>
+</ol>
+<ol>
+<li><strong>일반인 개선 요청 경계 강제 — 측정된 방법론</strong>: &quot;문제만 기술, 솔루션 제안 금지&quot; 경계를 LLM agent 에 강제하는 정량 측정 연구를 찾지 못함. 인터뷰 가이드라인 문헌만 존재.</li>
+</ol>
+<hr>
+<h3 id="inferences-학습-데이터-기반-추론-검증된-fact-아님"><a class="anchor" href="#inferences-학습-데이터-기반-추론-검증된-fact-아님" aria-hidden="true">#</a>Inferences (학습 데이터 기반 추론 — 검증된 fact 아님)</h3>
+<ul>
+<li><em>Inferred:</em> Cognitive Walkthrough 의 4가지 질문은 원래 HCI 전문가용으로 설계되었으므로, LLM 이 이를 일반인 시점으로 수행하면 전문가 지식이 자동으로 개입될 위험이 있다. agent v1 이 이를 사용할 때 &quot;전문가처럼 추론하지 말 것&quot; 명시적 제약이 필요할 수 있다.</li>
+<li><em>Inferred:</em> RITE 방법은 반복 테스트를 전제로 하므로 단일 세션 평가인 harness-customer-user 에는 직접 적용이 어렵다. 다만 &quot;결함 발견 즉시 메모&quot; 패턴은 차용 가능.</li>
+<li><em>Inferred:</em> SEQ (Single Ease Question 1–7) 는 단일 태스크 완료 직후 물어야 하며, 세션 종료 후 통합 평가로 물으면 recall bias 가 개입한다. agent v1 의 SEQ 위치(각 태스크 직후 vs 세션 종료 후)를 명확히 해야 한다.</li>
+</ul>
+<hr>
+<h3 id="sources-consulted"><a class="anchor" href="#sources-consulted" aria-hidden="true">#</a>Sources Consulted</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr><th>#</th><th>URL</th><th>유형</th><th>신뢰도</th><th>Used For</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><a href="https://www.nngroup.com/articles/usability-testing-101/" rel="noopener noreferrer" target="_blank">https://www.nngroup.com/articles/usability-testing-101/</a></td><td>공식 vendor docs</td><td>HIGH</td><td>F1, Comparison</td></tr>
+<tr><td>2</td><td><a href="https://www.nngroup.com/articles/first-impressions-human-automaticity/" rel="noopener noreferrer" target="_blank">https://www.nngroup.com/articles/first-impressions-human-automaticity/</a></td><td>공식 vendor docs</td><td>HIGH</td><td>F2, Comparison</td></tr>
+<tr><td>3</td><td><a href="https://www.nngroup.com/articles/microsoft-desirability-toolkit/" rel="noopener noreferrer" target="_blank">https://www.nngroup.com/articles/microsoft-desirability-toolkit/</a></td><td>공식 vendor docs</td><td>HIGH</td><td>F6, Comparison</td></tr>
+<tr><td>4</td><td><a href="https://arxiv.org/html/2505.13995v1" rel="noopener noreferrer" target="_blank">https://arxiv.org/html/2505.13995v1</a></td><td>학술 논문 (2025)</td><td>HIGH</td><td>F3, Comparison</td></tr>
+<tr><td>5</td><td><a href="https://arxiv.org/html/2605.12894" rel="noopener noreferrer" target="_blank">https://arxiv.org/html/2605.12894</a></td><td>학술 논문 (2025)</td><td>HIGH</td><td>F4, Comparison</td></tr>
+<tr><td>6</td><td><a href="https://arxiv.org/html/2602.18462v1" rel="noopener noreferrer" target="_blank">https://arxiv.org/html/2602.18462v1</a></td><td>학술 논문 (2026)</td><td>HIGH</td><td>F5</td></tr>
+<tr><td>7</td><td><a href="https://arxiv.org/abs/2503.16527" rel="noopener noreferrer" target="_blank">https://arxiv.org/abs/2503.16527</a></td><td>학술 논문 (2025) — abstract only</td><td>MEDIUM</td><td>보조 맥락</td></tr>
+<tr><td>8</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC2815403/" rel="noopener noreferrer" target="_blank">https://pmc.ncbi.nlm.nih.gov/articles/PMC2815403/</a></td><td>peer-reviewed 의료 IT</td><td>MEDIUM</td><td>F1, Comparison</td></tr>
+<tr><td>9</td><td><a href="https://secureprivacy.ai/blog/global-cookie-consent-trends-2026" rel="noopener noreferrer" target="_blank">https://secureprivacy.ai/blog/global-cookie-consent-trends-2026</a></td><td>업계 블로그</td><td>MEDIUM</td><td>F7</td></tr>
+<tr><td>10</td><td><a href="https://www.sciencedirect.com/article/pii/S2199853125000551" rel="noopener noreferrer" target="_blank">https://www.sciencedirect.com/article/pii/S2199853125000551</a></td><td>학술 논문</td><td>MEDIUM</td><td>F7</td></tr>
+<tr><td>11</td><td><a href="https://www.usertesting.com/blog/rite-method-usability-testing" rel="noopener noreferrer" target="_blank">https://www.usertesting.com/blog/rite-method-usability-testing</a></td><td>공식 vendor blog</td><td>MEDIUM</td><td>Comparison (RITE)</td></tr>
+<tr><td>12</td><td><a href="https://en.wikipedia.org/wiki/Microsoft_Reaction_Card_Method_(Desirability_Testing" rel="noopener noreferrer" target="_blank">https://en.wikipedia.org/wiki/Microsoft_Reaction_Card_Method_(Desirability_Testing</a>)</td><td>Wikipedia</td><td>MEDIUM</td><td>F6 보조</td></tr>
+</tbody></table></div>
+<hr>
+<h3 id="search-trail"><a class="anchor" href="#search-trail" aria-hidden="true">#</a>Search Trail</h3>
+<ul>
+<li><strong>Iteration 1a</strong>: <code>layperson first-time user usability testing methods 2025 2026 NNG UserTesting</code> → NN/G 허브 + parallelhq 2026 가이드 확인. 핵심 방법론 목록 확보. 신호: think-aloud 권장, 비교 수치 없음.</li>
+<li><strong>Iteration 1b</strong>: <code>LLM synthetic users persona simulation bias usability 2025 2026 arXiv CHI</code> → arXiv 2503.16527, 2602.18462, 2605.12894, 2505.13995 확보. 신호: cooperative simulator 편향, persona conditioning 실패.</li>
+<li><strong>Iteration 2a</strong>: <code>VisAWI aesthetic usability effect first impression Lindgaard 50ms credibility 2025</code> → Lindgaard 50ms 재확인. 2025 신규 검증 연구 없음 (2006–2012 기반).</li>
+<li><strong>Iteration 2b</strong>: <code>PURE method RITE rapid iterative testing desirability testing Microsoft reaction cards layperson 2025</code> → RITE, Microsoft Reaction Cards 존재 확인. PURE method 결과 없음.</li>
+<li><strong>Iteration 2c (Fetch)</strong>: arXiv 2503.16527 — abstract만 접근 가능. 전문 PDF 미획득.</li>
+<li><strong>Iteration 2d (Fetch)</strong>: arXiv 2602.18462v1 — 전문 접근, 수치 추출 성공.</li>
+<li><strong>Iteration 3a</strong>: <code>think aloud protocol layperson novice user cognitive walkthrough comparison effectiveness 2025</code> → PMC 비교 연구, AHRQ 확인. 2025 신규 비교 연구 없음.</li>
+<li><strong>Iteration 3b</strong>: <code>LLM persona sycophancy politeness bias user testing &quot;polite inflation&quot; simulation 2025</code> → arXiv 2505.13995 핵심 수치 확보.</li>
+<li><strong>Iteration 3c (Fetch)</strong>: arXiv 2505.13995v1 — Social Sycophancy 수치 전문 추출 성공.</li>
+<li><strong>Iteration 3d (Fetch)</strong>: arXiv 2605.12894 — Beyond Cooperative Simulators 수치 추출 성공.</li>
+<li><strong>Iteration 4a</strong>: <code>permission dialog cookie consent mobile app first launch user abandonment rate 2024 2025</code> → 쿠키 다크 패턴 90% 이상 확인. Gatekeeper/SmartScreen 직접 수치 없음.</li>
+<li><strong>Iteration 4b (Fetch)</strong>: NN/G usability-testing-101 — 참가자 기준, think-aloud 권장 확인.</li>
+</ul>
+<hr>
+<h3 id="호출자에게-메인-claude"><a class="anchor" href="#호출자에게-메인-claude" aria-hidden="true">#</a>호출자에게 (메인 Claude)</h3>
+<p><strong>agent v1 즉시 업데이트 권고 사항 (HIGH confidence 기반):</strong></p>
+<ol>
+<li><strong>LLM sycophancy 차단 규칙 강화</strong> (F3, F4):</li>
+</ol>
+<ul>
+<li>기존 &quot;공손함 인플레이션 39.2%&quot; 항목에 신규 수치 추가: 감정적 검증 76% vs 인간 22%, 간접 언어 87% vs 20%, 프레이밍 수용 90% vs 60% (출처: arXiv 2505.13995, 2026).</li>
+<li>&quot;실제 사람은 정보를 단편적·불완전하게 제공한다&quot; 명시 추가. Cooperative simulator 정렬도 24–47% vs 실제 인간 84–91% (출처: arXiv 2605.12894, 2025).</li>
+</ul>
+<ol>
+<li><strong>5초 테스트 용도 명확화</strong> (F2):</li>
+</ol>
+<ul>
+<li>현재 agent 가 5초 테스트를 일반 clarity 측정에 쓰고 있는지 확인 필요. 5초 테스트는 &quot;미학·첫인상 특화 — 결함 탐지 도구 아님&quot;으로 용도 분리 명시 권고.</li>
+</ul>
+<ol>
+<li><strong>Microsoft Desirability Toolkit 추가</strong> (F6):</li>
+</ol>
+<ul>
+<li>layperson 이 감성을 언어화하는 데 118개 단어 카드 활용. &quot;X가 거슬렸다&quot; → 단어 선택 → 결함 증거 연결. 전문 용어 없이 감성 수집 가능 → 일반인 페르소나에 적합.</li>
+</ul>
+<ol>
+<li><strong>피드백 경계 강제 규칙 명시</strong> (Q4 — MEDIUM confidence, 단 중요):</li>
+</ol>
+<ul>
+<li>&quot;일반인 페르소나는 문제를 기술하되 솔루션을 제안하지 않는다&quot; 명시. 예: &quot;이 버튼이 어디에 있는지 못 찾겠어요&quot; (적합) vs &quot;이 버튼을 상단으로 옮겨야 해요&quot; (부적합 — 전문가 영역). LLM 이 자동으로 solution-framing 으로 넘어가는 것을 막는 명시적 규칙 필요.</li>
+</ul>
+<ol>
+<li><strong>쿠키 동의 체크포인트 추가</strong> (F7):</li>
+</ol>
+<ul>
+<li>기존 &quot;NN/G permission requests 가이드&quot; 항목에 &quot;거절 버튼이 수락 버튼과 동등한 시인성인가?&quot; 체크 추가 (90% 다크 패턴 실태 반영).</li>
+</ul>
+<ol>
+<li><strong>LLM persona conditioning 한계 명시</strong> (F5):</li>
+</ol>
+<ul>
+<li>현재 &quot;default locale 한국어&quot; 페르소나 조건만으로는 충분하지 않음. Persona conditioning 이 실제로 서브그룹 에러를 재분배하고 충실도를 오히려 저하시킬 수 있음. 페르소나 단계에서 검증된 행동 체크리스트(단편적 정보 제공, 비전문 언어 사용, 인내심 제한)를 추가하는 것이 persona prompt 조건보다 안정적.</li>
+</ul>
+<p><strong>저장 권고</strong>: <code>.harness/research/research-customer-user-01-layperson-ux.md</code></p>
+<hr>
+<h2 id="learning-proposals"><a class="anchor" href="#learning-proposals" aria-hidden="true">#</a>Learning Proposals</h2>
+<p><strong>추가 제안</strong> (templates/learning-proposal.md 형식):</p>
+<figure class="code-block"><pre><code>[PROPOSE ADD — Patterns]
+[2026-05-16] LLM social sycophancy 차단을 위한 구체 수치 기반 규칙 — 
+Social Sycophancy 논문 (arXiv 2505.13995) 기준:
+감정적 검증 LLM 76% vs 인간 22%, 간접 언어 87% vs 20%, 프레이밍 수용 90% vs 60%.
+&quot;LLM 이 일반인 페르소나를 흉내낼 때 문제를 축소하거나 수용하는 경향&quot;을 차단하려면
+agent prompt 에 &quot;결함을 발견하면 문제를 감추거나 완화하지 말 것&quot; 명시 필요.
+근거: arXiv 2505.13995 (AITA dataset, 2025); arXiv 2605.12894 (cooperative simulator bias, 2025).</code></pre></figure>
+<figure class="code-block"><pre><code>[PROPOSE ADD — Patterns]
+[2026-05-16] Cooperative simulator 편향 정량 기준 —
+Default LLM user simulator 는 Communication Style 정렬도 24–47% (인간 84–91%) 수준.
+harness-customer-user agent 가 &quot;realistic&quot; 일반인 시뮬레이션을 하려면
+정보를 불완전하게 제공하고, 가정에 반박하고, 인내심 제한을 두는 행동 규칙이 필수.
+근거: arXiv 2605.12894 &quot;Beyond Cooperative Simulators&quot; (2025).</code></pre></figure>
+<figure class="code-block"><pre><code>[PROPOSE ADD — Anti-patterns]
+[2026-05-16] 5초 테스트를 결함 탐지 도구로 오용 금지 —
+5초 테스트는 미학·첫인상 특화 (Lindgaard 50ms, NN/G 확인).
+&quot;어디서 막히는가&quot; 탐지에는 부적합. agent 정의에서 용도를 &quot;clarity/trust 첫인상 측정&quot;으로
+제한하고 결함 탐지는 think-aloud / first click 에 위임해야 한다.
+근거: NN/G First Impressions article (2026-05-16 페치 확인).</code></pre></figure>
+<hr>
+<h2 id="learning-proposals-반영-2026-05-16-메인-claude"><a class="anchor" href="#learning-proposals-반영-2026-05-16-메인-claude" aria-hidden="true">#</a>Learning Proposals 반영 (2026-05-16, 메인 Claude)</h2>
+<p>3건 모두 <code>~/.claude/skills/harness/agents/learning/harness-customer-user.md</code> 에 적용:</p>
+<ol>
+<li><strong>Cooperative simulator 편향 정량 기준</strong> → Patterns 섹션 추가 (line 40 직후)</li>
+<li><strong>LLM 페르소나 함정 7: Social Sycophancy</strong> → Anti-patterns 섹션 추가 (페르소나 함정 1–6 다음)</li>
+<li><strong>5초 테스트 결함 탐지 오용 금지</strong> → Anti-patterns 섹션 추가 (페르소나 함정 7 다음)</li>
+</ol>
+<p>References 에 arXiv 2505.13995, arXiv 2605.12894, NN/G First Impressions URL 추가.</p>
+<p><strong>미반영 사항</strong> (별도 검토 필요):</p>
+<ul>
+<li>F6 Microsoft Desirability Toolkit (118 단어 카드) 추가 — agent 정의 (<code>agents/harness-customer-user.md</code>) 의 &quot;2-C / 2-D 측정 도구&quot; 섹션 구조 변경 필요. 학습 파일이 아닌 agent skill 본문 수정 사안.</li>
+<li>피드백 경계 강제 규칙 (&quot;문제 기술만, 솔루션 제안 금지&quot;) — 보고서 형식 &quot;권고&quot; 섹션의 명시적 제약 추가. 역시 agent 본문 수정 사안 + Open Question 4 (MEDIUM confidence) 상태.</li>
+</ul>
+<p>위 2건은 agent 본문 구조 수정이라 별도 PR 또는 후속 작업으로 권고.</p>
+
+</article>
+</main>
+</div>
+<script>
+  // Active section tracking in ToC
+  (function() {
+    const links = document.querySelectorAll('.toc a');
+    if (!links.length) return;
+    const linkMap = new Map();
+    links.forEach(a => {
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (target) linkMap.set(target, a);
+    });
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        const link = linkMap.get(e.target);
+        if (link && e.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0% -75% 0%', threshold: 0 });
+    linkMap.forEach((_, target) => observer.observe(target));
+  })();
+</script>
+</body>
+</html>

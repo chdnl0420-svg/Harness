@@ -1,0 +1,4 @@
+# LF 강제 — bootstrap CRLF 보정과 마스터 hash 비교 정합성 보장
+* text=auto eol=lf
+*.sh text eol=lf
+*.md text eol=lf

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>workflow-review-2026-05-15</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --c-bg: #fbfaf7;
+    --c-surface: #ffffff;
+    --c-surface-2: #f5f3ee;
+    --c-text: #1a1a1a;
+    --c-text-muted: #5a5a5a;
+    --c-border: #e5e2da;
+    --c-accent: #0353a4;
+    --c-accent-soft: #e7f0fa;
+    --c-code-bg: #f4f2ec;
+    --c-code-text: #1f2937;
+
+    --c-critical: #b91c1c;
+    --c-critical-bg: #fef2f2;
+    --c-critical-border: #fca5a5;
+    --c-warning: #b45309;
+    --c-warning-bg: #fffbeb;
+    --c-warning-border: #fcd34d;
+    --c-tip: #1e7a4f;
+    --c-tip-bg: #f0fdf4;
+    --c-tip-border: #86efac;
+    --c-note: #1e40af;
+    --c-note-bg: #eff6ff;
+    --c-note-border: #93c5fd;
+    --c-success: #15803d;
+    --c-success-bg: #f0fdf4;
+    --c-success-border: #86efac;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-xl: 16px;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+
+    --sidebar-w: 260px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --c-bg: #0e0e10;
+      --c-surface: #18181b;
+      --c-surface-2: #232328;
+      --c-text: #ececec;
+      --c-text-muted: #a0a0a0;
+      --c-border: #2e2e33;
+      --c-accent: #79b8ff;
+      --c-accent-soft: #1e2a3e;
+      --c-code-bg: #1a1a1d;
+      --c-code-text: #e5e5e5;
+
+      --c-critical-bg: #2a1414;
+      --c-critical-border: #7f1d1d;
+      --c-warning-bg: #2a1f0e;
+      --c-warning-border: #92400e;
+      --c-tip-bg: #0e2218;
+      --c-tip-border: #166534;
+      --c-note-bg: #0f1a2e;
+      --c-note-border: #1e3a8a;
+      --c-success-bg: #0e2218;
+      --c-success-border: #166534;
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--c-bg);
+    color: var(--c-text);
+    line-height: 1.7;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    max-width: 1280px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  @media (max-width: 960px) {
+    .layout { grid-template-columns: 1fr; }
+    .toc { position: static !important; max-height: none !important; }
+  }
+
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow-y: auto;
+    padding: 2rem 1.25rem;
+    border-right: 1px solid var(--c-border);
+    background: var(--c-surface);
+    font-size: 0.875rem;
+  }
+  .toc-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--c-text-muted);
+    margin: 0 0 0.75rem;
+    font-weight: 600;
+  }
+  .toc ol { list-style: none; padding: 0; margin: 0; }
+  .toc li { margin: 0; }
+  .toc li a {
+    display: block;
+    padding: 0.35rem 0.5rem;
+    color: var(--c-text);
+    text-decoration: none;
+    border-radius: var(--r-sm);
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1.4;
+  }
+  .toc li a:hover {
+    background: var(--c-surface-2);
+    border-left-color: var(--c-accent);
+  }
+  .toc li.toc-sub a {
+    padding-left: 1.5rem;
+    font-size: 0.825rem;
+    color: var(--c-text-muted);
+  }
+
+  main {
+    padding: 2.5rem 3rem 5rem;
+    min-width: 0;
+  }
+  @media (max-width: 960px) { main { padding: 1.5rem 1.25rem 3rem; } }
+
+  article header.doc-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .doc-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  .doc-subtitle {
+    color: var(--c-text-muted);
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .meta-card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .meta-card dl { margin: 0; display: grid; gap: 0.5rem; }
+  .meta-row {
+    display: grid;
+    grid-template-columns: minmax(80px, 120px) 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    font-size: 0.875rem;
+  }
+  .meta-row dt {
+    color: var(--c-text-muted);
+    font-weight: 500;
+  }
+  .meta-row dd {
+    margin: 0;
+    color: var(--c-text);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: inherit;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    scroll-margin-top: 1rem;
+  }
+  h1 { font-size: 2rem; margin: 2.5em 0 0.7em; }
+  h2 {
+    font-size: 1.5rem;
+    margin: 2.5em 0 0.8em;
+    padding-bottom: 0.35em;
+    border-bottom: 1px solid var(--c-border);
+  }
+  h3 { font-size: 1.2rem; margin: 1.8em 0 0.6em; color: var(--c-text); }
+  h4 { font-size: 1.05rem; margin: 1.4em 0 0.5em; }
+  h5, h6 { font-size: 0.95rem; margin: 1.2em 0 0.5em; color: var(--c-text-muted); }
+
+  h1:first-child, h2:first-child, h3:first-child { margin-top: 0; }
+
+  .anchor {
+    color: var(--c-text-muted);
+    text-decoration: none;
+    opacity: 0;
+    margin-right: 0.35em;
+    margin-left: -1.2em;
+    padding: 0 0.4em;
+    transition: opacity 0.15s;
+  }
+  h1:hover .anchor, h2:hover .anchor, h3:hover .anchor,
+  h4:hover .anchor, h5:hover .anchor, h6:hover .anchor { opacity: 1; }
+
+  p { margin: 0.9em 0; }
+
+  a {
+    color: var(--c-accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s;
+  }
+  a:hover { border-bottom-color: var(--c-accent); }
+
+  strong { font-weight: 600; color: var(--c-text); }
+  em { font-style: italic; }
+  del { color: var(--c-text-muted); text-decoration: line-through; }
+
+  code {
+    font-family: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    font-size: 0.86em;
+    background: var(--c-code-bg);
+    color: var(--c-code-text);
+    padding: 0.15em 0.45em;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--c-border);
+  }
+
+  .code-block {
+    margin: 1.2em 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    background: var(--c-code-bg);
+    box-shadow: var(--shadow-sm);
+  }
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--c-text-muted);
+    background: var(--c-surface-2);
+    padding: 0.4em 1em;
+    border-bottom: 1px solid var(--c-border);
+    font-weight: 500;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: 1em 1.25em;
+    overflow-x: auto;
+    background: transparent;
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+  .code-block code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    color: var(--c-code-text);
+  }
+
+  blockquote {
+    margin: 1.2em 0;
+    padding: 0.6em 1.2em;
+    border-left: 3px solid var(--c-border);
+    color: var(--c-text-muted);
+    background: var(--c-surface-2);
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+  }
+
+  .callout {
+    margin: 1.3em 0;
+    padding: 1em 1.25em;
+    border-left: 4px solid;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    background: var(--c-surface);
+  }
+  .callout p { margin: 0.3em 0; }
+  .callout p:first-of-type { margin-top: 0; }
+  .callout p:last-of-type { margin-bottom: 0; }
+  .callout-label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.4em;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .callout-icon { font-size: 1.05em; margin-right: 0.2em; }
+  .callout-critical { border-left-color: var(--c-critical); background: var(--c-critical-bg); }
+  .callout-critical .callout-label { color: var(--c-critical); }
+  .callout-warning { border-left-color: var(--c-warning); background: var(--c-warning-bg); }
+  .callout-warning .callout-label { color: var(--c-warning); }
+  .callout-tip { border-left-color: var(--c-tip); background: var(--c-tip-bg); }
+  .callout-tip .callout-label { color: var(--c-tip); }
+  .callout-note { border-left-color: var(--c-note); background: var(--c-note-bg); }
+  .callout-note .callout-label { color: var(--c-note); }
+  .callout-success { border-left-color: var(--c-success); background: var(--c-success-bg); }
+  .callout-success .callout-label { color: var(--c-success); }
+  .callout-quote { border-left-color: var(--c-border); background: var(--c-surface-2); color: var(--c-text-muted); }
+
+  .table-wrap {
+    margin: 1.3em 0;
+    border: 1px solid var(--c-border);
+    border-radius: var(--r-md);
+    overflow: auto;
+    box-shadow: var(--shadow-sm);
+    background: var(--c-surface);
+    max-height: 70vh;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  thead { position: sticky; top: 0; background: var(--c-surface-2); z-index: 1; }
+  th, td {
+    padding: 0.6em 0.9em;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--c-border);
+  }
+  th {
+    font-weight: 600;
+    color: var(--c-text);
+    border-bottom: 2px solid var(--c-border);
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) td { background: var(--c-surface-2); }
+  tbody tr:hover td { background: var(--c-accent-soft); }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { font-size: 0.82em; }
+
+  ul, ol {
+    padding-left: 1.5em;
+    margin: 0.8em 0;
+  }
+  li { margin: 0.3em 0; }
+  li > ul, li > ol { margin: 0.3em 0; }
+
+  hr {
+    border: 0;
+    height: 1px;
+    background: var(--c-border);
+    margin: 2.5em 0;
+  }
+
+  /* Print friendly */
+  @media print {
+    .toc { display: none; }
+    .layout { display: block; max-width: 100%; }
+    main { padding: 1rem; }
+    .table-wrap { max-height: none; overflow: visible; }
+    a { color: var(--c-text); border-bottom: none; }
+    .anchor { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="목차"><h2 class="toc-title">목차</h2><ol><li><a href="#요약">요약</a></li><li><a href="#검토-관점별-결과">검토 관점별 결과</a></li><li class="toc-sub"><a href="#1-8단계-파이프라인-구조">1. 8단계 파이프라인 구조</a></li><li class="toc-sub"><a href="#2-게이트루프5회-안전장치">2. 게이트·루프·5회 안전장치</a></li><li class="toc-sub"><a href="#3-qastep6-와-커스터머step7-분리">3. QA(step6) 와 커스터머(step7) 분리</a></li><li class="toc-sub"><a href="#4-noagent-모드-설계">4. `--noagent` 모드 설계</a></li><li class="toc-sub"><a href="#5-codex-cli-가-외부-도구로-분리된-점">5. Codex CLI 가 외부 도구로 분리된 점</a></li><li class="toc-sub"><a href="#6-step-스킵통합-금지-조항">6. Step 스킵·통합 금지 조항</a></li><li class="toc-sub"><a href="#7-문서-자체-품질">7. 문서 자체 품질</a></li><li><a href="#top-5-우선순위-개선-권고">Top 5 우선순위 개선 권고</a></li><li class="toc-sub"><a href="#1-blocked-step8-실패-분기를-흐름-다이어그램에-추가-impact-high-ease-high">1. BLOCKED / step8 실패 분기를 흐름 다이어그램에 추가 (impact: HIGH, ease: HIGH)</a></li><li class="toc-sub"><a href="#2-5회-동일-문제-판정-기준-명시-impact-high-ease-high">2. 5회 &quot;동일 문제&quot; 판정 기준 명시 (impact: HIGH, ease: HIGH)</a></li><li class="toc-sub"><a href="#3-noagent-모드-학습-데이터-경로-명시-impact-medium-ease-high">3. `--noagent` 모드 학습 데이터 경로 명시 (impact: MEDIUM, ease: HIGH)</a></li><li class="toc-sub"><a href="#4-step7-재실행-조건선택-추가-impact-medium-ease-medium">4. step7 재실행 조건(선택) 추가 (impact: MEDIUM, ease: MEDIUM)</a></li><li class="toc-sub"><a href="#5-codex-fallback-시-교차검증-효과-손실-고지-impact-medium-ease-high">5. Codex fallback 시 교차검증 효과 손실 고지 (impact: MEDIUM, ease: HIGH)</a></li><li><a href="#open-questions-조사로-해소-못한-것">Open Questions (조사로 해소 못한 것)</a></li><li><a href="#inferences-검증된-fact-아님">Inferences (검증된 fact 아님)</a></li><li><a href="#출처">출처</a></li></ol></nav>
+<main>
+<article>
+<header class="doc-header">
+<h1 class="doc-title">workflow-review-2026-05-15</h1>
+
+</header>
+
+<h1 id="workflowmd-검토-리포트-2026-05-15"><a class="anchor" href="#workflowmd-검토-리포트-2026-05-15" aria-hidden="true">#</a>workflow.md 검토 리포트 (2026-05-15)</h1>
+<aside class="callout callout-quote">
+<p>검토 대상: <code>docs/workflow.md</code></p>
+<p>방식: <code>harness-deep-researcher</code> 위임 (standard tier)</p>
+<p>호출 맥락: <code>/harness-plan</code> 안에서 사용자 요청 &quot;workflow 검토 + 딥리서치 기반 개선안&quot;</p>
+<p>환각·URL 위조: 없음. WebFetch 4회 모두 응답 수신.</p>
+</aside>
+<hr>
+<h2 id="요약"><a class="anchor" href="#요약" aria-hidden="true">#</a>요약</h2>
+<p>harness skill 의 8단계 파이프라인은 <strong>생성자-평가자 분리</strong>, <strong>외부 모델 교차검증(Codex)</strong>, <strong>페르소나 분리(QA vs 커스터머)</strong> 면에서 2026 산업 모범 사례와 일치한다.</p>
+<p>그러나 5가지 빈틈이 있다.</p>
+<ol>
+<li>5회 안전장치의 &quot;동일 문제&quot; 판정 기준이 없다 → 카운터가 실제론 작동 안 할 수 있다.</li>
+<li>step8 commit/push 실패 시 되돌아갈 경로가 없다.</li>
+<li><code>--noagent</code> 모드에서 메인 Claude 가 읽어야 할 학습 데이터 경로가 명시 안 됐다.</li>
+<li>step7 (커스터머 테스트) 이 &quot;전체 1회 고정&quot; 인데, step3 루프가 많이 돌면 구현이 크게 바뀌어도 재실행 트리거가 없다.</li>
+<li>BLOCKED 이후 사용자 선택지(스킵/재시도/중단)가 다이어그램에 없다.</li>
+</ol>
+<p>Top 5 개선 권고는 아래 별도 섹션 참고.</p>
+<hr>
+<h2 id="검토-관점별-결과"><a class="anchor" href="#검토-관점별-결과" aria-hidden="true">#</a>검토 관점별 결과</h2>
+<h3 id="1-8단계-파이프라인-구조"><a class="anchor" href="#1-8단계-파이프라인-구조" aria-hidden="true">#</a>1. 8단계 파이프라인 구조</h3>
+<p><strong>현재 설계:</strong> init → 도메인 → 구현계획 → 구현 → 리뷰 → QA → 커스터머 → commit 의 선형 8단계.</p>
+<p><strong>외부 비교:</strong></p>
+<p>Anthropic 의 공식 harness 설계 (2026-04) 는 <strong>3-agent 구조</strong> — Planner, Generator, Evaluator. 단계 수보다 역할 분리가 핵심이다.</p>
+<aside class="callout callout-quote">
+<p>&quot;decomposing the build into tractable chunks, and using structured artifacts to hand off context between sessions&quot;</p>
+<p>— anthropic.com/engineering/harness-design-long-running-apps</p>
+</aside>
+<p><strong>강점:</strong> 8단계지만 실제로는 init / plan(step2-3) / act(step4) / judge(step5-7) / commit 의 5역할이다. Anthropic 의 3-agent 와 본질적으로 같다. step2 도메인 → step3 구현계획 분리는 추측 코딩을 막는 입력 게이트다.</p>
+<p><strong>약점:</strong> 8단계 목록이 길어 보여 새 기여자가 무겁게 느낀다. complete 단계가 step8 에 이어져 공식 단계인지 후처리인지 불분명.</p>
+<p><strong>개선:</strong> 흐름 다이어그램에 &quot;역할 레이어&quot; 라벨 한 줄 추가. &quot;8단계지만 실제로는 5역할&quot; 이 한눈에 보인다.</p>
+<hr>
+<h3 id="2-게이트루프5회-안전장치"><a class="anchor" href="#2-게이트루프5회-안전장치" aria-hidden="true">#</a>2. 게이트·루프·5회 안전장치</h3>
+<p><strong>현재 설계:</strong> step5 LGTM(승인) NO / step6 FAIL → step3 무제한 루프. 동일 문제 5회 반복 시 중단.</p>
+<p><strong>외부 비교:</strong></p>
+<aside class="callout callout-quote">
+<p>&quot;maximum tool calls per conversation (15 is recommended) and a developer's Claude Code instance...burned through 1.67 billion tokens in 5 hours.&quot;</p>
+<p>— dev.to/adamo_software (LLM 루프 방지 5 패턴)</p>
+</aside>
+<p>AWS 회로 차단기(circuit breaker) 패턴: 동일 유형 오류가 임계값 초과 시 자동 차단 → 사람에게 에스컬레이션.</p>
+<p><strong>강점:</strong> 5회 안전장치 자체는 회로 차단기 패턴과 일치. 무제한 루프에 상한이 있다.</p>
+<p><strong>약점:</strong></p>
+<ul>
+<li>&quot;동일 문제&quot; 판정 기준이 없다. 표현만 다르면 카운터가 리셋되는가?</li>
+<li>5회 기준의 근거가 없다. 산업 표준(15회) 보다 보수적인 이유 설명이 없다.</li>
+<li>BLOCKED 분기가 메인 다이어그램에 없다.</li>
+</ul>
+<p><strong>개선:</strong> workflow.md 다이어그램에 BLOCKED 분기 추가. 5회 카운터 판정 기준을 한 줄 각주로 붙인다. 예: _&quot;동일 결함 = 동일 파일 + 동일 오류 유형 기준. 표현만 다르면 동일로 간주.&quot;_</p>
+<hr>
+<h3 id="3-qastep6-와-커스터머step7-분리"><a class="anchor" href="#3-qastep6-와-커스터머step7-분리" aria-hidden="true">#</a>3. QA(step6) 와 커스터머(step7) 분리</h3>
+<p><strong>현재 설계:</strong> step6 는 QA 전문가 페르소나, step7 은 &quot;제품 처음 본 일반인&quot; 페르소나(production 빌드). step7 은 전체 1회 고정.</p>
+<p><strong>외부 비교 (NN/g, IxDF, PMC):</strong></p>
+<ul>
+<li>Heuristic Evaluation (휴리스틱 평가, 원칙 기반 전문가 검토) → step6 QA 와 대응</li>
+<li>Cognitive Walkthrough (인지 통과, 태스크 기반 첫 사용자 시뮬레이션) → step7 커스터머 와 대응</li>
+<li>두 방법을 분리해 순서대로 적용하는 것이 UX 학계 권고다.</li>
+</ul>
+<aside class="callout callout-quote">
+<p>&quot;Cognitive walkthroughs focus on people, testing whether first-time users can understand and complete tasks without guidance&quot;</p>
+<p>— IxDF</p>
+</aside>
+<p><strong>강점:</strong> 페르소나 분리가 UX 학계 모범 사례와 정확히 일치. step7 이 production 빌드를 요구하는 점이 강하다 (dev 환경 대체를 명시적으로 금지).</p>
+<p><strong>약점:</strong></p>
+<ul>
+<li>step7 &quot;전체 1회&quot; 가 절대 고정. step3 루프 15회 이상 시 구현이 크게 바뀌어도 재실행 트리거가 없다.</li>
+<li>step7 결과가 &quot;게이트 아님&quot; 이라서 발견된 심각한 UX 문제의 피드백 통로가 workflow.md 메인에 없다 (step7 상세 문서엔 있음).</li>
+</ul>
+<p><strong>개선:</strong> 다이어그램에 step7 하단 &quot;(중대 UX 문제 발견 시 → 사용자 결정: 새 워크플로우로 처리)&quot; 한 줄 추가.</p>
+<hr>
+<h3 id="4-noagent-모드-설계"><a class="anchor" href="#4-noagent-모드-설계" aria-hidden="true">#</a>4. <code>--noagent</code> 모드 설계</h3>
+<p><strong>현재 설계:</strong> 모든 harness-* 도우미(subagent) 호출 금지. 학습 데이터 자동 prepend(앞에 끼워 넣기) 손실 → 메인 Claude 가 직접 읽음. Codex CLI 는 그대로.</p>
+<p><strong>외부 비교:</strong></p>
+<ul>
+<li>단일 컨텍스트 내 모든 정보 때려 넣으면 &quot;lost in the middle&quot; 현상 발생 → 모델이 중간 내용 무시.</li>
+<li>multi-agent 는 토큰 15배 소비 (Anthropic blog).</li>
+</ul>
+<p><strong>강점:</strong> <code>--noagent</code> 의 존재 자체가 올바른 설계. &quot;어떻게 수행하는가만 바꾼다, 어떤 step 을 거치는가는 바꾸지 않는다&quot; 원칙이 명확.</p>
+<p><strong>약점:</strong></p>
+<ul>
+<li>&quot;메인 Claude 가 해당 step 시작 전 직접 읽어와 컨텍스트에 반영&quot; — 어느 파일을 읽는지 경로가 없다.</li>
+<li>step6/step7 에서 <code>browser-qa</code> skill 이 없을 때 &quot;메인이 일반인 흉내&quot; 는 사실상 BLOCKED 와 같다. 분기가 모호.</li>
+<li>학습 데이터를 메인 컨텍스트에 올리면 컨텍스트 창 소비 급증. 이 비용 트레이드오프가 문서에 없다.</li>
+</ul>
+<p><strong>개선:</strong> workflow.md L29 에 구체 경로 추가. 예: _&quot;메인 Claude 가 <code>~/.claude/skills/harness/agents/learning/&lt;agent-name&gt;.md</code> 를 직접 Read 해 컨텍스트에 올린다.&quot;_</p>
+<hr>
+<h3 id="5-codex-cli-가-외부-도구로-분리된-점"><a class="anchor" href="#5-codex-cli-가-외부-도구로-분리된-점" aria-hidden="true">#</a>5. Codex CLI 가 외부 도구로 분리된 점</h3>
+<p><strong>현재 설계:</strong> step5 리뷰를 Codex CLI(WSL bash wrapper) 로 수행. 도우미 아님. Codex 불가 시 fallback(대안): code-review skill.</p>
+<p><strong>외부 비교:</strong></p>
+<aside class="callout callout-quote">
+<p>&quot;Separating the agent doing the work from the agent judging it proves to be a strong lever&quot;</p>
+<p>— anthropic.com/engineering/harness-design-long-running-apps</p>
+</aside>
+<p>Claude + GPT 교차검증 패턴이 2026-04 기준 산업 전반에서 확산 중 (GeekWire, MindStudio 기사). 단일 모델 대비 약 13.8% 개선 (GPT-5.2 evaluator 기준 보고).</p>
+<p><strong>강점:</strong> Claude 가 생성한 코드를 Codex(GPT 계열) 가 검토하는 구조는 자기편향(self-review bias) 방지에 가장 효과적. WSL wrapper 로 분리해 컨텍스트 오염 없이 독립 실행.</p>
+<p><strong>약점:</strong></p>
+<ul>
+<li>WSL + Codex CLI 의존: macOS/Linux 사용자나 인증 실패 시 step5 가 막힌다.</li>
+<li>fallback 시 교차검증 효과가 사라진다는 사실이 workflow.md 에 명시 안 됐다.</li>
+<li>Codex CLI 버전 고정 정책 없음 → wrapper 출력 형식 변동 시 LGTM 추출 룰 오작동 가능.</li>
+</ul>
+<p><strong>개선:</strong> workflow.md 부록에 _&quot;Codex fallback 시 교차검증 효과 손실 — 이 사실을 사용자에게 알리고 진행 의사를 확인&quot;_ 1줄 추가.</p>
+<hr>
+<h3 id="6-step-스킵통합-금지-조항"><a class="anchor" href="#6-step-스킵통합-금지-조항" aria-hidden="true">#</a>6. Step 스킵·통합 금지 조항</h3>
+<p><strong>현재 설계:</strong> step 자체 규칙에 없는 스킵은 모두 위반. 사용자 요청도 거절. 위반 시 즉시 중단 + 보고.</p>
+<p><strong>외부 비교 (Anthropic):</strong></p>
+<aside class="callout callout-quote">
+<p>&quot;As capabilities improve (Opus 4.5→4.6), certain scaffolding becomes unnecessary overhead. The evaluator's necessity depends on task difficulty relative to current model baseline—not a fixed requirement.&quot;</p>
+<p>— anthropic.com/engineering/harness-design-long-running-apps</p>
+</aside>
+<p>이는 &quot;모델 능력에 따라 일부 단계는 overhead(불필요 부하) 가 될 수 있다&quot; 는 뉘앙스로, 현재의 &quot;절대 스킵 금지&quot; 와 방향이 다르다.</p>
+<p><strong>강점:</strong> 스킵 금지 없으면 &quot;간단하니 생략&quot; 의 누적이 품질 보증 구조 전체를 무력화. 위반 즉시 보고 정책이 있어 조용한 실패(silent failure) 차단.</p>
+<p><strong>약점:</strong></p>
+<ul>
+<li>&quot;사용자 자율성 vs 품질 보장&quot; 트레이드오프가 문서에 없다. 거절 이유를 모르면 사용자 불만 발생.</li>
+<li>모델 능력 향상 시 일부 step 이 overhead 가 된다 (Anthropic 인용). 재검토 트리거가 없다.</li>
+</ul>
+<p><strong>개선:</strong> CRITICAL 섹션 상단에 한 줄 이유 추가. _&quot;각 step 은 하나의 품질 게이트다. 게이트를 건너뛰면 결함이 다음 step 으로 전파되어 루프 비용이 기하급수적으로 증가한다.&quot;_</p>
+<hr>
+<h3 id="7-문서-자체-품질"><a class="anchor" href="#7-문서-자체-품질" aria-hidden="true">#</a>7. 문서 자체 품질</h3>
+<p><strong>강점:</strong> ASCII 다이어그램이 분기 조건을 시각화. 실행 옵션 표가 단일 뷰로 정리. <code>test-guide-format.md</code> 분리로 가이드 자체 오염 방지.</p>
+<p><strong>약점:</strong></p>
+<p>A) step8 commit/push 실패 시 경로 없음. git push reject(거절), 네트워크 오류 등이 일어나면 워크플로우가 멈춘다.</p>
+<p>B) step7 도중 사용자 인터럽트 처리 없음. 다이어그램에 명시 안 됨.</p>
+<p>C) BLOCKED 이후 사용자 선택지가 다이어그램에 없음.</p>
+<p>D) step2 도메인 설계 수정 분기가 단방향 화살표만 있음.</p>
+<p>E) Codex 부록 섹션이 본문과 분리감 — Codex 는 step5 의 핵심 도구임에도 부록 취급.</p>
+<p><strong>개선(최우선):</strong> 흐름 다이어그램에 BLOCKED 분기, step8 실패 분기 추가.</p>
+<hr>
+<h2 id="top-5-우선순위-개선-권고"><a class="anchor" href="#top-5-우선순위-개선-권고" aria-hidden="true">#</a>Top 5 우선순위 개선 권고</h2>
+<h3 id="1-blocked-step8-실패-분기를-흐름-다이어그램에-추가-impact-high-ease-high"><a class="anchor" href="#1-blocked-step8-실패-분기를-흐름-다이어그램에-추가-impact-high-ease-high" aria-hidden="true">#</a>1. BLOCKED / step8 실패 분기를 흐름 다이어그램에 추가 (impact: HIGH, ease: HIGH)</h3>
+<p><strong>위치:</strong> workflow.md L80-99 흐름 다이어그램</p>
+<p><strong>개선:</strong></p>
+<figure class="code-block"><pre><code>├─ BLOCKED ──&gt; 사용자 결정 요청
+│              (A) 환경 수정 후 재시도
+│              (B) 이 step 스킵 승인 (사용자 명시적 동의 필요)
+│              (C) 워크플로우 중단
+
+step8. commit / push
+   ├─ 성공 → complete
+   └─ 실패 → 사용자에게 오류 보고 후 결정 요청
+              (재시도 / 브랜치 수정 / 로컬 commit 만 완료로 처리)</code></pre></figure>
+<p>이유: 다이어그램에 분기가 없으면 메인 Claude 가 임의로 PASS 처리하거나 멈춰버린다.</p>
+<hr>
+<h3 id="2-5회-동일-문제-판정-기준-명시-impact-high-ease-high"><a class="anchor" href="#2-5회-동일-문제-판정-기준-명시-impact-high-ease-high" aria-hidden="true">#</a>2. 5회 &quot;동일 문제&quot; 판정 기준 명시 (impact: HIGH, ease: HIGH)</h3>
+<p><strong>위치:</strong> workflow.md L76, L84</p>
+<p><strong>개선:</strong> &quot;동일 문제 = 동일 파일 경로 + 동일 오류 유형(예: 타입 오류, null 참조, 권한 오류)의 조합. 표현이 달라도 유형과 위치가 같으면 동일로 간주. 카운터는 step5/step6 가 공유하지 않고 각자 독립으로 카운트.&quot;</p>
+<p>이유: 기준이 없으면 안전장치가 실제로 작동하지 않는다.</p>
+<hr>
+<h3 id="3-noagent-모드-학습-데이터-경로-명시-impact-medium-ease-high"><a class="anchor" href="#3-noagent-모드-학습-데이터-경로-명시-impact-medium-ease-high" aria-hidden="true">#</a>3. <code>--noagent</code> 모드 학습 데이터 경로 명시 (impact: MEDIUM, ease: HIGH)</h3>
+<p><strong>위치:</strong> workflow.md L29</p>
+<p><strong>개선:</strong> &quot;메인 Claude 가 <code>~/.claude/skills/harness/agents/learning/harness-&lt;agent-name&gt;.md</code> 를 직접 Read 한 뒤 컨텍스트에 반영한다. step6 면 <code>harness-qa-engineer.md</code>, step7 면 <code>harness-customer-user.md</code>.&quot;</p>
+<p>이유: 경로가 없으면 메인 Claude 가 학습 데이터를 찾지 못하거나 잘못된 파일을 읽는다.</p>
+<hr>
+<h3 id="4-step7-재실행-조건선택-추가-impact-medium-ease-medium"><a class="anchor" href="#4-step7-재실행-조건선택-추가-impact-medium-ease-medium" aria-hidden="true">#</a>4. step7 재실행 조건(선택) 추가 (impact: MEDIUM, ease: MEDIUM)</h3>
+<p><strong>위치:</strong> workflow.md L90-93</p>
+<p><strong>개선:</strong> &quot;전체 1회 원칙을 유지하되, step3 루프가 10회 이상 발생해 구현이 최초 도메인 설계와 크게 달라진 경우, 메인 Claude 는 사용자에게 step7 재실행 여부를 제안할 수 있다.&quot;</p>
+<p>이유: 구현이 크게 바뀐 제품을 첫 커스터머 테스트 결과로 판단하는 것은 의미가 없다.</p>
+<hr>
+<h3 id="5-codex-fallback-시-교차검증-효과-손실-고지-impact-medium-ease-high"><a class="anchor" href="#5-codex-fallback-시-교차검증-효과-손실-고지-impact-medium-ease-high" aria-hidden="true">#</a>5. Codex fallback 시 교차검증 효과 손실 고지 (impact: MEDIUM, ease: HIGH)</h3>
+<p><strong>위치:</strong> workflow.md L125-133 부록 또는 step5 기본 모드 표 비고 칸</p>
+<p><strong>개선:</strong> &quot;Codex fallback 시 동일 모델(Claude) 이 구현과 리뷰를 모두 수행하므로 자기편향 제거 효과가 사라진다. 이 사실을 사용자에게 알린 뒤 진행 의사를 확인한다.&quot;</p>
+<p>이유: fallback 은 기능 유지지만 품질 보증 수준 저하. 사용자가 인식해야 한다.</p>
+<hr>
+<h2 id="open-questions-조사로-해소-못한-것"><a class="anchor" href="#open-questions-조사로-해소-못한-것" aria-hidden="true">#</a>Open Questions (조사로 해소 못한 것)</h2>
+<ul>
+<li><strong>step7 재실행 임계값:</strong> 10회를 권고했으나 실측 기반 수치가 아니다. 실제 운영 후 데이터로 조정 필요.</li>
+<li><strong>5회 vs 15회:</strong> 산업 표준(최대 15 tool calls)과 다른 5회를 선택한 설계 의도가 문서에 없다. 비용 보수성 때문인지 품질 기준 때문인지 명확히 해야 한다.</li>
+<li><strong>BLOCKED 시 &quot;스킵 승인&quot; 가능 여부:</strong> &quot;Step 스킵·통합 금지&quot; 조항과 충돌. 사용자 승인 시 예외인가? 명시적 예외 규정이 필요하다.</li>
+</ul>
+<hr>
+<h2 id="inferences-검증된-fact-아님"><a class="anchor" href="#inferences-검증된-fact-아님" aria-hidden="true">#</a>Inferences (검증된 fact 아님)</h2>
+<ul>
+<li><em>Inferred:</em> 5회 안전장치는 비용 보수성 기반 직관적 선택으로 보임. 측정 데이터 없음.</li>
+<li><em>Inferred:</em> <code>--noagent</code> 에서 학습 데이터를 메인 컨텍스트에 올리면 컨텍스트 창의 약 15-20% 소모 가능. 측정 미실시.</li>
+</ul>
+<hr>
+<h2 id="출처"><a class="anchor" href="#출처" aria-hidden="true">#</a>출처</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr><th>#</th><th>URL</th><th>신뢰도</th><th>사용처</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td><a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents</a></td><td>HIGH</td><td>관점 1, 4</td></tr>
+<tr><td>2</td><td><a href="https://www.anthropic.com/engineering/harness-design-long-running-apps" rel="noopener noreferrer" target="_blank">https://www.anthropic.com/engineering/harness-design-long-running-apps</a></td><td>HIGH</td><td>관점 1, 3, 5, 6</td></tr>
+<tr><td>3</td><td><a href="https://dev.to/adamo_software/tool-use-api-design-for-llms-5-patterns-that-prevent-agent-loops-and-silent-failures-f29" rel="noopener noreferrer" target="_blank">https://dev.to/adamo_software/tool-use-api-design-for-llms-5-patterns-that-prevent-agent-loops-and-silent-failures-f29</a></td><td>MEDIUM</td><td>관점 2</td></tr>
+<tr><td>4</td><td><a href="https://www.nngroup.com/articles/cognitive-walkthroughs/" rel="noopener noreferrer" target="_blank">https://www.nngroup.com/articles/cognitive-walkthroughs/</a></td><td>HIGH</td><td>관점 3</td></tr>
+<tr><td>5</td><td><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9206256/" rel="noopener noreferrer" target="_blank">https://pmc.ncbi.nlm.nih.gov/articles/PMC9206256/</a></td><td>HIGH</td><td>관점 3</td></tr>
+<tr><td>6</td><td><a href="https://ixdf.org/literature/topics/heuristic-evaluation" rel="noopener noreferrer" target="_blank">https://ixdf.org/literature/topics/heuristic-evaluation</a></td><td>HIGH</td><td>관점 3</td></tr>
+<tr><td>7</td><td><a href="https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/" rel="noopener noreferrer" target="_blank">https://www.infoq.com/news/2026/04/anthropic-three-agent-harness-ai/</a></td><td>MEDIUM</td><td>관점 1</td></tr>
+<tr><td>8</td><td><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/circuit-breaker.html" rel="noopener noreferrer" target="_blank">https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/circuit-breaker.html</a></td><td>HIGH</td><td>관점 2</td></tr>
+<tr><td>9</td><td><a href="https://www.augmentcode.com/guides/ai-agent-loop-token-cost-context-constraints" rel="noopener noreferrer" target="_blank">https://www.augmentcode.com/guides/ai-agent-loop-token-cost-context-constraints</a></td><td>MEDIUM</td><td>관점 4</td></tr>
+</tbody></table></div>
+
+</article>
+</main>
+</div>
+<script>
+  // Active section tracking in ToC
+  (function() {
+    const links = document.querySelectorAll('.toc a');
+    if (!links.length) return;
+    const linkMap = new Map();
+    links.forEach(a => {
+      const id = a.getAttribute('href').slice(1);
+      const target = document.getElementById(id);
+      if (target) linkMap.set(target, a);
+    });
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        const link = linkMap.get(e.target);
+        if (link && e.isIntersecting) {
+          links.forEach(l => l.classList.remove('active'));
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-20% 0% -75% 0%', threshold: 0 });
+    linkMap.forEach((_, target) => observer.observe(target));
+  })();
+</script>
+</body>
+</html>

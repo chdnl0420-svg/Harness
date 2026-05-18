@@ -266,8 +266,10 @@ PROJECT_DISPLAY="$PROJECT_DIR"
 } >&2
 
 # ===== tmux 세션 시작 =====
+# 주의: remain-on-exit 는 설정하지 않는다. codex 가 pane 안에서 끝나면 pane 도 자연 종료되어
+# tmux session → bash → wsl.exe → wt.exe 탭 순서로 graceful close 가 일어나야 하기 때문.
+# 디버그용 결과는 sentinel 파일과 `.harness/reviews/_codex-raw-*.txt` 에 이미 저장됨.
 tmux new-session -d -s "$SESSION_NAME" "bash $INNER" 2>&1 | sed 's/^/  [tmux] /' >&2
-tmux set-option -t "$SESSION_NAME" remain-on-exit on 2>/dev/null || true
 
 if ! tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     echo "❌ tmux 세션 시작 실패" >&2
@@ -346,7 +348,7 @@ done
 if [ "$READY" != "1" ]; then
     echo "🚨 Codex TUI 로딩 ${READY_TIMEOUT}s 안에 prompt 안 보임 — 진단:" >&2
     tmux capture-pane -t "$SESSION_NAME" -p 2>/dev/null | tail -15 | sed 's/^/    │ /' >&2
-    echo "tmux session 유지 (디버그용): tmux attach -t $SESSION_NAME" >&2
+    tmux kill-session -t "$SESSION_NAME" 2>/dev/null
     rm -f "$INNER"
     exit 1
 fi
@@ -424,7 +426,7 @@ if ! verify_paste; then
     if ! verify_paste; then
         echo "❌ 재시도에도 입력박스에 prompt 미반영 — 진단 후 종료" >&2
         tmux capture-pane -t "$TARGET_PANE" -p 2>/dev/null | tail -15 | sed 's/^/    │ /' >&2
-        echo "  (디버그 보존: tmux=$SESSION_NAME)" >&2
+        tmux kill-session -t "$SESSION_NAME" 2>/dev/null
         rm -f "$INNER" "$PROMPT_FILE"
         exit 1
     fi
@@ -652,7 +654,7 @@ $FALLBACK_CAPTURE"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "🚨 Codex idle ${IDLE_LIMIT}s — exit 124, 총 경과 ${ELAPSED}s"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "tmux 세션 유지 (디버그): tmux attach -t $SESSION_NAME"
+            echo "디버그: sentinel 보존 → $SENTINEL"
             echo ""
             echo "💡 Codex가 실제로 작업 중인데 idle로 잘못 감지된 경우:"
             echo "   - HARNESS_IDLE_LIMIT=0           (idle 검사 자체 비활성, HARD_LIMIT만 적용)"
@@ -674,13 +676,12 @@ $FALLBACK_CAPTURE"
 esac
 
 # ===== Cleanup =====
+# tmux 세션은 success/fail 무관 항상 종료 — wt.exe 탭이 안 닫히는 증상 차단.
+# sentinel + .harness/reviews/_codex-raw-*.txt 는 audit 위해 보존됨.
 rm -f "$INNER" "$PROMPT_FILE"
-if [ "$EXIT_CODE" = "0" ]; then
-    # 성공: tmux 정리, sentinel은 audit 위해 보존
-    tmux kill-session -t "$SESSION_NAME" 2>/dev/null
-else
-    # 실패: tmux + sentinel 모두 보존 (디버그)
-    echo "  (디버그 보존: tmux=$SESSION_NAME, sentinel=$SENTINEL)" >&2
+tmux kill-session -t "$SESSION_NAME" 2>/dev/null
+if [ "$EXIT_CODE" != "0" ]; then
+    echo "  (디버그: sentinel 보존 → $SENTINEL)" >&2
 fi
 
 # ===== stdout 출력 =====

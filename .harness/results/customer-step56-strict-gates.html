@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>customer — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.ok{background:rgba(57,210,142,.16);color:var(--ok)}
+.callout{border-left:3px solid var(--warn);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>👤 customer · step56-strict-gates</h1>
+<span class="meta">사람-읽기 점검 · 게이트 아님 (보고만)</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="summary">한눈에</button>
+<button role="tab" aria-selected="false" data-tab="readability">가독성</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="summary" class="active">
+<h3>사람-읽기 결과</h3>
+<div class="card">새 룰 5개를 *처음 읽는 운영자* 관점에서 점검. workflow.md / step5-review.md / step6-qa.md 를 순서대로 읽었을 때 다음이 명확한지:</div>
+
+<table>
+<thead><tr><th style="width:36px">#</th><th>질문</th><th>답</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>step5 LGTM:UNKNOWN 이 언제 발동되는지 운영자가 워크플로우 본문만 보고 알 수 있나?</td><td>네 — step5-review.md §결정 보고 7필드 + 판정 규칙에 "fallback=code-review skill AND assistant 제거=NO AND 판정=YES → UNKNOWN 강등" 명시.</td></tr>
+<tr><td>Q2</td><td>유형 enum 13종이 어디에 정의되어 있나?</td><td>workflow.md §"회송 경로 실행 보장 (5)" 가 정의 원본. step5/6 의 Loop Counter 섹션에 cross-reference.</td></tr>
+<tr><td>Q3</td><td>git diff 객관 검증의 <code>&lt;step4_commit_sha&gt;</code> 가 어디에 기록되나?</td><td>workflow.md (3) 본문 — "step4 진입 시 git rev-parse HEAD 결과를 progress-&lt;slug&gt;.html 의 진행 상태 카드에 자동 기록".</td></tr>
+<tr><td>Q4</td><td>step6 의존성 사전 점검이 어디서 실행되나?</td><td>step6-qa.md 흐름의 1b 단계 — 도우미 호출 *전*.</td></tr>
+<tr><td>Q5</td><td>BLOCKED (D) 가 단일 슬러그 모드에서 (C) 와 같은 결과인지 운영자가 알 수 있나?</td><td>네 — step6-qa.md 분기 (D) 본문 마지막 줄 "단일 슬러그 모드면 (C) 와 동일" 명시.</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>잔여 가독성 이슈:</strong> "메타 순환" 처리 (본 패치 자체가 새 룰을 도입 — 새 룰을 본 패치에 적용하면 LGTM:UNKNOWN 강등) 가 운영자에게 명시되지 않음. 다음 워크플로우부터 새 룰이 본격 발동된다는 점을 사용자 통보로만 전달 — 문서에는 미명시. 운영 누적되면 명시 권고.
+</div>
+</section>
+
+<section role="tabpanel" id="readability">
+<h3>읽기 흐름 — 운영자 시선</h3>
+<ol style="font-size:12.5px">
+<li>운영자가 <code>workflow.md</code> 의 §"회송 경로 실행 보장" 을 처음부터 끝까지 읽는다 → (1)(2)(3)(4)(5) 다섯 메커니즘 + 적용 검증 5개 시나리오로 매끄럽게 흐름.</li>
+<li>(3) 의 git diff 룰을 보면 step4_commit_sha 가 어디서 오는지 본문에 명시 → 운영자 추측 불필요.</li>
+<li>(5) enum 13종은 단독 블록으로 분리되어 시각적으로 명확. OTHER 5회 alert 룰까지 명시.</li>
+<li><code>step5-review.md</code> §결정 보고 양식 7필드 — fallback_used / assistant 제거 줄이 명확히 추가됨. 판정 규칙에서 "LGTM:UNKNOWN 강등" 룰이 굵게 표시.</li>
+<li><code>step6-qa.md</code> §흐름 1b — "wasted run 차단" 주석으로 의도가 즉시 전달됨. 분기 BLOCKED 4개 (A/B/C/D) 가 들여쓰기로 일관성.</li>
+</ol>
+
+<div class="card">
+전체적으로 *기존 워크플로우 본문에 균질하게 통합* — 새 섹션이 따로 떨어진 느낌 없음. 운영자가 한 번 읽으면 신규 룰이 모두 보임.
+</div>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

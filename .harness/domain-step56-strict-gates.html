@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>domain — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b;--info:#82a9ff}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a;--info:#2459d6}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.crit{background:rgba(239,91,107,.16);color:var(--crit)}
+.badge.warn{background:rgba(243,168,71,.16);color:var(--warn)}
+.badge.info{background:rgba(130,169,255,.16);color:var(--accent)}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.callout{border-left:3px solid var(--accent);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>📐 domain · step56-strict-gates</h1>
+<span class="meta">목적: step5·6 게이트의 self-favoring/정직성 의존/회피 통로 차단</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="ov">한눈에</button>
+<button role="tab" aria-selected="false" data-tab="problems">문제→대응</button>
+<button role="tab" aria-selected="false" data-tab="scope">범위</button>
+<button role="tab" aria-selected="false" data-tab="invariants">불변식</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="ov" class="active">
+<h3>한 줄 목표</h3>
+<div class="card">
+직전 보고서 (<code>harness-step56-issues-2026-05-18.html</code>) 의 보강 권고 5건을 master harness skill 의 <code>workflow.md / step5-review.md / step6-qa.md</code> 에 모두 반영하여, step5·6 게이트가 메인 Claude 의 self-favoring / 정직성 의존 / 라벨 회피로 우회되지 못하게 한다.
+</div>
+
+<h3>핵심 KPI</h3>
+<div class="grid">
+<div class="card">자기-LGTM 통로 차단 — self-review fallback 시 <code>LGTM:UNKNOWN</code> 강등이 강제되는가</div>
+<div class="card">5회 임계 회피 차단 — 결함 유형 라벨이 13개 enum 외 값을 가지면 거부되는가</div>
+<div class="card">자체 수정 객관 검증 — <code>git diff &lt;step4_sha&gt;..HEAD</code> 가 비어 있지 않은데 보고가 NO 면 즉시 중단되는가</div>
+<div class="card">BLOCKED dead-end 해소 — 무인 모드에서 (D) <code>paused-by-blocked + 다음 슬러그</code> 분기가 동작하는가</div>
+<div class="card">wasted run 차단 — step6 진입 전 자동화 도구 사전 점검이 강제되는가</div>
+</div>
+
+<div class="callout">
+<strong>전제:</strong> noask 기본 정책 하에서 자동 진행. self-bias 고지 절차 같은 사용자 의사 확인은 생략하되, 모든 자동 결정은 progress / report 파일에 기록.
+</div>
+</section>
+
+<section role="tabpanel" id="problems">
+<h3>5개 보강 → 도메인 매핑</h3>
+<table>
+<thead><tr><th style="width:36px">#</th><th>문제 (CRIT/HIGH)</th><th>대응 (도메인 룰)</th></tr></thead>
+<tbody>
+<tr><td>P1</td><td>step5 self-review fallback 가 게이트 우회 가능 <span class="badge crit">CRIT</span></td><td>5필드 결정 보고에 <code>fallback_used</code> + <code>assistant 제거 호출 여부</code> 필드 추가. <code>fallback=code-review skill</code> AND <code>assistant 제거=NO</code> AND <code>판정=LGTM YES</code> → <strong>LGTM:UNKNOWN 강등 + 슬러그 일시정지</strong>.</td></tr>
+<tr><td>P2</td><td>"동일 문제 라벨" 회피로 5회 임계 무력화 <span class="badge crit">CRIT</span></td><td>유형 라벨을 13개 enum 으로 고정: <code>TYPE_ERROR / NULL_REFERENCE / PERMISSION_DENIED / RESOURCE_NOT_FOUND / RACE_CONDITION / LOGIC_ERROR / IO_FAILURE / TIMEOUT / API_CONTRACT / SECURITY / TEST_COVERAGE / BUILD_FAILURE / OTHER</code>. enum 외 값이면 거부. OTHER 5회 누적 시 사용자 alert.</td></tr>
+<tr><td>P3</td><td>자기 점검 정직성 의존 <span class="badge crit">CRIT</span></td><td>step5/6 결정 보고 직전 <code>git diff &lt;step4_commit_sha&gt;..HEAD -- &lt;변경 파일&gt;</code> 자동 실행. diff 비어 있지 않으면 "자체 수정 = YES" 자동 라벨, 보고가 NO 면 즉시 중단. step4 진입 시 commit SHA 를 progress 파일에 자동 기록.</td></tr>
+<tr><td>P4</td><td>step6 BLOCKED 무인 환경 dead-end <span class="badge warn">HIGH</span></td><td>BLOCKED 분기에 (D) <code>paused-by-blocked</code> + 다음 슬러그 자동 시작 추가 — 무인 모드 한정. 최대 N 슬러그 누적 시 alert. 단일 슬러그 모드면 (C) 와 동일.</td></tr>
+<tr><td>P5</td><td>step6 의존성 점검이 도우미 호출 후 발생 → wasted run <span class="badge info">MED</span></td><td>step6 1단계로 <em>의존성 사전 점검</em> 추가: MCP 브라우저 / Claude Preview / 프로젝트 Playwright 셋 다 NO 면 도우미 호출 전에 BLOCKED 즉시. 점검 결과를 progress 에 기록.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section role="tabpanel" id="scope">
+<h3>변경 대상 — 영향 영역</h3>
+<table>
+<thead><tr><th>파일</th><th>섹션</th><th>변경 종류</th></tr></thead>
+<tbody>
+<tr><td><code>docs/workflow.md</code></td><td>§"회송 경로 실행 보장" (line 172-199) 중 (3) 자체 수정 우회 차단</td><td>git diff 객관 검증 보강</td></tr>
+<tr><td><code>docs/workflow.md</code></td><td>§"회송 경로 실행 보장" 끝</td><td>유형 enum 13종 + OTHER 룰 추가</td></tr>
+<tr><td><code>docs/steps/step5-review.md</code></td><td>§"다음 step 결정 보고 (게이트)" 5필드 양식</td><td><code>fallback_used</code> + <code>assistant 제거 호출 여부</code> 필드 + LGTM:UNKNOWN 강등 룰</td></tr>
+<tr><td><code>docs/steps/step5-review.md</code></td><td>§"루프 카운터 누적 의무" 유형 라벨</td><td>enum 13종 명시</td></tr>
+<tr><td><code>docs/steps/step5-review.md</code></td><td>§"다음 step 결정 보고" 자기 점검 항목</td><td>git diff 자동 검증 + 보고 불일치 시 즉시 중단 룰</td></tr>
+<tr><td><code>docs/steps/step6-qa.md</code></td><td>§흐름 1단계 직후</td><td>의존성 사전 점검 step (Claude_in_Chrome / Claude_Preview / Playwright) 추가</td></tr>
+<tr><td><code>docs/steps/step6-qa.md</code></td><td>§분기 6번 BLOCKED 분기</td><td>(D) paused-by-blocked + 다음 슬러그 자동 시작 분기 추가</td></tr>
+<tr><td><code>docs/steps/step6-qa.md</code></td><td>§"다음 step 결정 보고" 자기 점검 + 카운터</td><td>step5 와 동일하게 enum + git diff 룰 명시</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>변경 안 하는 것:</strong> workflow.md §흐름 다이어그램 (line 117-164), §"Step 스킵·무시 금지" (line 100-113), §"Learning Prepend 계약" (line 46-96). 이들은 보강과 직교 — surgical change 원칙.
+</div>
+</section>
+
+<section role="tabpanel" id="invariants">
+<h3>적용 후 통과해야 할 불변식 (step6 QA 검증 기준)</h3>
+<table>
+<thead><tr><th style="width:36px">#</th><th>불변식</th><th>검증 방법</th></tr></thead>
+<tbody>
+<tr><td>I1</td><td>step5-review.md 의 결정 보고 양식에 <code>fallback_used</code> 줄 존재</td><td>grep <code>fallback_used</code></td></tr>
+<tr><td>I2</td><td>step5-review.md 의 결정 보고 양식에 <code>assistant 제거</code> 줄 존재</td><td>grep <code>assistant 제거</code></td></tr>
+<tr><td>I3</td><td>step5-review.md 에 <code>LGTM:UNKNOWN</code> 강등 규칙 존재</td><td>grep <code>LGTM:UNKNOWN</code></td></tr>
+<tr><td>I4</td><td>workflow.md 또는 step5/6 에 유형 enum 13종 명시</td><td>grep <code>TYPE_ERROR</code> AND <code>NULL_REFERENCE</code> AND <code>BUILD_FAILURE</code></td></tr>
+<tr><td>I5</td><td>workflow.md 또는 step5/6 에 git diff 객관 검증 룰</td><td>grep <code>step4_commit_sha</code> AND <code>git diff</code></td></tr>
+<tr><td>I6</td><td>step6-qa.md 에 BLOCKED (D) 분기 존재</td><td>grep <code>paused-by-blocked</code></td></tr>
+<tr><td>I7</td><td>step6-qa.md 흐름에 의존성 사전 점검 step 존재</td><td>grep <code>의존성</code> AND (<code>mcp__Claude_in_Chrome</code> OR <code>의존성 점검</code>)</td></tr>
+<tr><td>I8</td><td>opening text 의 굵은 룰들이 모두 유지됨 (회귀 차단)</td><td>grep <code>회송 경로 실행 보장</code> AND <code>Loop Counter</code></td></tr>
+</tbody>
+</table>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

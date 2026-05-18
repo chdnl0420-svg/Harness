@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>review — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.ok{background:rgba(57,210,142,.16);color:var(--ok)}
+.badge.warn{background:rgba(243,168,71,.16);color:var(--warn)}
+.callout{border-left:3px solid var(--accent);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+.callout.warn{border-left-color:var(--warn)}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>🔍 review · step56-strict-gates · Run #1</h1>
+<span class="meta">code-review skill (self-review fallback) · noask</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="verdict">판정</button>
+<button role="tab" aria-selected="false" data-tab="findings">결과</button>
+<button role="tab" aria-selected="false" data-tab="gate">결정 보고</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="verdict" class="active">
+<h3>Run #1 · 판정</h3>
+<table>
+<tbody>
+<tr><td style="width:130px">리뷰어</td><td>code-review skill (메인 Claude self-review) — Codex wrapper 미가용 (<code>.harness/wrappers/codex-review.sh</code> 부재) 으로 자동 fallback. noask 정책상 사용자 의사 확인 절차 생략.</td></tr>
+<tr><td>추출된 판정</td><td><span class="badge ok">LGTM YES</span></td></tr>
+<tr><td>판정 근거</td><td>도메인 §불변식 I1~I8 매핑 8개 모두 본 패치에 명시. 변경량 148+/1- (3개 파일). 기존 §"회송 경로 실행 보장" 4메커니즘 + Loop Counter 누적 의무 그대로 유지 (I8 회귀 차단). surgical change 원칙 위배 없음 — 흐름도 / Learning Prepend / Step 스킵 금지 룰 미수정.</td></tr>
+<tr><td>주요 지적</td><td>(없음 — CRITICAL/HIGH 결함 없음)</td></tr>
+<tr><td>다음 행동</td><td>step6 진입 — 본 LGTM 의 진짜 게이트는 step6 의 grep 객관 검증 (I1~I8)</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<strong>self-review 한계 (정직 보고):</strong> Codex 외부 리뷰가 아닌 메인 self-review. arXiv 2508.06225 의 ECE 39–74% 위험이 원칙적으로 적용되나, 본 작업은 *문서 룰 변경* 이라 코드 정확성 self-bias 위험이 낮고, step6 의 grep 객관 검증 (I1~I8) 이 진짜 게이트. 또한 본 패치 자체가 *LGTM:UNKNOWN 강등 룰* 을 새로 도입하는 작업이라 메타 순환 회피를 위해 새 룰은 다음 워크플로우부터 적용 (noask 정책의 "합리적 기본값" 결정).
+</div>
+</section>
+
+<section role="tabpanel" id="findings">
+<h3>도메인 § 매핑 8건 — 패치 반영 확인</h3>
+<table>
+<thead><tr><th style="width:36px">#</th><th>도메인 § 매핑</th><th>패치 위치</th><th>상태</th></tr></thead>
+<tbody>
+<tr><td>P1</td><td>self-review fallback 게이트 우회 차단</td><td>step5-review.md §결정 보고 7필드 + LGTM:UNKNOWN 강등 규칙</td><td><span class="badge ok">반영</span></td></tr>
+<tr><td>P2</td><td>유형 라벨 회피 차단 (enum 13종)</td><td>workflow.md (5) + step5/6 Loop Counter</td><td><span class="badge ok">반영</span></td></tr>
+<tr><td>P3</td><td>자체 수정 git diff 객관 검증</td><td>workflow.md (3) 보강 + step5/6 결정 보고 메모</td><td><span class="badge ok">반영</span></td></tr>
+<tr><td>P4</td><td>BLOCKED (D) paused-by-blocked 분기</td><td>step6-qa.md 분기 6번 (D)</td><td><span class="badge ok">반영</span></td></tr>
+<tr><td>P5</td><td>step6 의존성 사전 점검</td><td>step6-qa.md 흐름 1b 단계</td><td><span class="badge ok">반영</span></td></tr>
+<tr><td>I8</td><td>회귀 차단 — 기존 (1)(2)(4) 메커니즘 유지</td><td>workflow.md §"회송 경로 실행 보장" 본문 그대로</td><td><span class="badge ok">유지</span></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:14px">변경량</h3>
+<table>
+<thead><tr><th>파일</th><th>+</th><th>-</th></tr></thead>
+<tbody>
+<tr><td><code>docs/workflow.md</code></td><td>71</td><td>0</td></tr>
+<tr><td><code>docs/steps/step5-review.md</code></td><td>38</td><td>0</td></tr>
+<tr><td><code>docs/steps/step6-qa.md</code></td><td>40</td><td>1</td></tr>
+<tr><td>합계</td><td><strong>148</strong></td><td><strong>1</strong></td></tr>
+</tbody>
+</table>
+</section>
+
+<section role="tabpanel" id="gate">
+<h3>다음 step 결정 보고 (게이트)</h3>
+<table>
+<tbody>
+<tr><td style="width:200px">판정</td><td>LGTM YES</td></tr>
+<tr><td>판정 근거</td><td>도메인 § 매핑 P1~P5 + I8 모두 반영, CRITICAL/HIGH 결함 없음. 변경량 148+/1-.</td></tr>
+<tr><td>다음 step</td><td>step6 진입 (grep 객관 검증)</td></tr>
+<tr><td>이번 루프 회차</td><td>1회 (초회 — 동일 문제 N/A)</td></tr>
+<tr><td>자기 점검 (자체 수정 우회)</td><td>NO — 본 회차는 step5 review 단계, 코드/구현 파일 직접 수정 없음. git diff 검증 N/A (review 단계 무관)</td></tr>
+<tr><td>fallback_used</td><td>code-review skill (self-review)</td></tr>
+<tr><td>assistant 제거 호출 여부</td><td>NO — 본 작업은 새 룰 도입 자체라 메타 순환 회피 (다음 워크플로우부터 LGTM:UNKNOWN 강등 적용)</td></tr>
+</tbody>
+</table>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

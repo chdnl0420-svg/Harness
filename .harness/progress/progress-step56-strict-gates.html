@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>progress — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#ffffff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.ok{background:rgba(57,210,142,.16);color:var(--ok)}
+.badge.warn{background:rgba(243,168,71,.16);color:var(--warn)}
+.badge.crit{background:rgba(239,91,107,.16);color:var(--crit)}
+.badge.info{background:rgba(130,169,255,.16);color:var(--accent)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>progress · step56-strict-gates</h1>
+<span class="meta">slug: step56-strict-gates · noask · master harness self-patch</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="state">상태</button>
+<button role="tab" aria-selected="false" data-tab="counter">Loop Counter</button>
+<button role="tab" aria-selected="false" data-tab="auto">자동 결정</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="state" class="active">
+<h3>진행 상태</h3>
+<table>
+<thead><tr><th>step</th><th>상태</th><th>산출물</th><th>비고</th></tr></thead>
+<tbody>
+<tr><td>step1 init</td><td><span class="badge ok">DONE</span></td><td>.noask, progress/, reviews/, results/</td><td>—</td></tr>
+<tr><td>step2 domain</td><td><span class="badge info">진행 중</span></td><td>domain-step56-strict-gates.html</td><td>5건 보강 권고 → 도메인 정리</td></tr>
+<tr><td>step3 impl-plan</td><td>대기</td><td>implementation-step56-strict-gates.html</td><td>—</td></tr>
+<tr><td>step4 impl</td><td>대기</td><td>workflow.md / step5-review.md / step6-qa.md edits</td><td>—</td></tr>
+<tr><td>step5 review</td><td>대기</td><td>review-step56-strict-gates.html</td><td>Codex or code-review skill</td></tr>
+<tr><td>step6 QA</td><td>대기</td><td>qa-step56-strict-gates.html</td><td>문서 변경 → grep 기반 검증</td></tr>
+<tr><td>step7 customer</td><td>대기</td><td>customer-step56-strict-gates.html</td><td>사람-읽기 보고만 (게이트 아님)</td></tr>
+<tr><td>step8 commit</td><td>대기</td><td>git commit + push</td><td>—</td></tr>
+</tbody>
+</table>
+
+<div class="card">
+<strong>step4_commit_sha:</strong> <code>(미정 — step4 직전 기록)</code><br>
+<strong>source 보고서:</strong> <code>C:\Users\NX3GAMES\Desktop\reports\harness-step56-issues-2026-05-18.html</code> "보강 권고" 탭의 5건.
+</div>
+</section>
+
+<section role="tabpanel" id="counter">
+<h3>Loop Counter</h3>
+<div class="card">
+<ul>
+<li>step5 LGTM:NO 누적: 0회</li>
+<li>step6 FAIL 누적: 0회</li>
+<li>직전 회차 결함 유형·파일: (없음)</li>
+<li>동일 문제 여부 판정: N/A</li>
+</ul>
+</div>
+</section>
+
+<section role="tabpanel" id="auto">
+<h3>자동 결정 기록</h3>
+<table>
+<thead><tr><th>시각 (UTC)</th><th>결정 지점</th><th>선택</th></tr></thead>
+<tbody>
+<tr><td>2026-05-18T00:11Z</td><td>workflow 시작 모드</td><td>noask (기본 정책)</td></tr>
+</tbody>
+</table>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

@@ -167,6 +167,77 @@ step8. git remote(원격 저장소) 있나?
 
 **"5회" 임계값 선택 이유:** 비용 보수성을 위한 선택. 1 루프당 Codex 호출 + 컨텍스트 재처리 비용이 누적되므로, 일반 LLM tool-call 산업 상한(약 15회) 대비 보수적인 5회를 채택했다. 같은 문제로 5회 실패 = *동일 접근* 의 한계로 판단하고 사용자 의사 결정에 맡긴다.
 
+---
+
+## CRITICAL: 회송 경로 실행 보장 (step5 LGTM:NO / step6 FAIL → step3)
+
+분기 라벨이 다이어그램에 있어도, 메인 Claude 가 자율 판단으로 우회하면 회송이 일어나지 않는다. 다음 4개 메커니즘이 *모두* 작동해야 회송이 실제로 발동된다.
+
+### (1) 다음 step 결정 보고 — 게이트
+
+step5/step6 가 끝난 직후 메인 Claude 는 채팅에 5필드 결정 보고를 출력한다. 출력 없이 다음 step 호출 시 step 스킵 위반. 양식은 [steps/step5-review.md](steps/step5-review.md#critical-다음-step-결정-보고-게이트--출력-없이-다음-step-진입-금지) / [steps/step6-qa.md](steps/step6-qa.md#critical-다음-step-결정-보고-게이트--출력-없이-다음-step-진입-금지) 참조.
+
+### (2) 루프 카운터 누적 — progress 파일에 표준화
+
+`progress-<slug>.md` 에 다음 `## Loop Counter` 섹션을 누적한다. step5/6 가 fail 보고를 누적할 때 카운터를 증가시키고, 다음 step 결정 보고의 "이번 루프 회차" 필드에 그 값을 인용한다. 누락 시 5회 자동 중단 게이트가 발동되지 않음 = 정책 위반.
+
+```markdown
+## Loop Counter
+- step5 LGTM:NO 누적: <N>회
+  - 직전 회차 결함 유형·파일: <유형> @ <파일경로>
+  - 동일 문제 여부 판정: 직전 회차와 (유형 + 파일경로) 조합이 동일 = YES, 다르면 NO
+- step6 FAIL 누적: <M>회
+  - 직전 회차 결함 유형·파일: ...
+  - 동일 결함 여부 판정: ...
+```
+
+### (3) 자체 수정 우회 차단
+
+step5/6 결정 보고의 자기 점검 항목 ("이번 fail 후 메인 Claude 가 코드/구현 파일을 직접 수정했는가?") 이 YES 면 즉시 워크플로우 중단. 메인 Claude 가 fail 후 코드를 직접 고치고 LGTM:YES / PASS 처리하는 anti-pattern 차단. 수정 의도가 있으면 반드시 step3 회송 절차를 통해 정식 plan 으로 반영해야 한다.
+
+**자기 점검의 객관 검증 (git diff 게이트, CRITICAL — 정직성 의존 제거)**: 자기 점검 항목 값을 메인 Claude 자체 답에 의존하지 않는다. step5/6 결정 보고 출력 직전 다음 명령을 자동 실행:
+
+```bash
+git diff <step4_commit_sha>..HEAD -- <step4 변경 파일 목록>
+```
+
+- `<step4_commit_sha>` 는 step4 진입 시 `git rev-parse HEAD` 결과를 `progress-<slug>.html` 의 진행 상태 카드에 자동 기록한 값.
+- diff 가 비어 있지 않으면 **자체 수정 = YES 자동 라벨**. 메인 Claude 가 적은 자기 점검 값이 NO 면 *불일치* — 즉시 워크플로우 중단 + `report-<slug>.html` 에 "정책 위반: git diff 와 자기 점검 불일치" 기록.
+- diff 가 비어 있으면 자체 수정 = NO 로 확정.
+
+이로써 메인 Claude 의 정직성에 의존하지 않고 객관 게이트만으로 자체 수정 우회를 차단한다.
+
+### (4) 회송 시 결함 전달 양식 — step3 의 입력
+
+step5/6 → step3 회송 시 직전 회차 결함 본문을 step3 의 plan skill 호출 prompt 에 prepend 한다. 양식·절차는 [steps/step3-impl-plan.md](steps/step3-impl-plan.md#회송-진입-모드-절차-critical--no-op-회송-차단) 의 "회송 진입 모드 절차" 에 통합. 결함 항목이 새 plan 의 변경 대상에 실제 차이로 반영되어야 step4 진입 허용 — *no-op 회송* 최종 차단선.
+
+### (5) 결함 유형 enum — 라벨 회피 차단 (CRITICAL)
+
+"동일 문제 여부" 판정의 *유형* 라벨이 메인 Claude free-form 이면 같은 결함을 다른 유형으로 적어 5회 임계를 우회할 수 있다. 다음 13종 enum 중 하나로만 라벨링한다:
+
+```
+TYPE_ERROR | NULL_REFERENCE | PERMISSION_DENIED |
+RESOURCE_NOT_FOUND | RACE_CONDITION | LOGIC_ERROR |
+IO_FAILURE | TIMEOUT | API_CONTRACT | SECURITY |
+TEST_COVERAGE | BUILD_FAILURE | OTHER
+```
+
+규칙:
+- enum 외 값은 거부 (progress 파일 검증 시 즉시 정책 위반 기록).
+- 동일 문제 판정: `(유형 enum, 파일경로 normalized)` 튜플 동일 시 YES. `파일경로 normalized = repo 상대경로 + 소문자`.
+- **OTHER 5회 누적 시 자동 사용자 alert** — OTHER 는 매번 새 fingerprint 로 분리되지 않으므로 라벨링 실패 신호. report 에 "OTHER 누적으로 라벨링 정밀도 부족" 기록.
+- step5 와 step6 의 enum 카운터는 독립 (workflow.md "5회 임계값" 정책 그대로).
+
+### 적용 검증
+
+위 5개 메커니즘이 모두 작동하면 다음 5개 시나리오가 통과한다 (자체 회귀 검증):
+
+1. LGTM:NO 1회 → step5 결정 보고 출력 → step3 회송 → plan prompt 에 직전 review 본문 prepend → 새 implementation 변경분 생성 → step4 진입.
+2. FAIL 1회 → step6 결정 보고 + Loop Counter 1회 누적 → step3 회송 → plan prompt 에 직전 qa fail 본문 prepend.
+3. 동일 문제 5회 반복 → 자동 중단 + report 에 사유 기록.
+4. 자체 수정 우회 시도 → 자기 점검 YES → 워크플로우 중단.
+5. no-op 회송 시도 → step3 의 "변경분 검증 게이트" 가 차단 → 결함 반영 요구.
+
 ## Step 이름 + 상세 절차 링크
 
 | step | 한 줄 | 상세 |

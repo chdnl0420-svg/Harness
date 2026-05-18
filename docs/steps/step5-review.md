@@ -53,3 +53,41 @@
 - 주요 지적: <목록>
 - 다음 행동: step6 진입 | step3 회송
 ```
+
+## CRITICAL: 다음 step 결정 보고 (게이트 — 출력 없이 다음 step 진입 금지)
+
+리뷰 회차를 `review-<slug>.md` 에 누적한 직후, **메인 Claude 는 채팅에 다음 5필드 보고를 반드시 출력한다.** 출력 없이 다음 step 호출 시 step 스킵 위반으로 워크플로우 중단.
+
+```
+### Step5 결과 → 다음 step 결정
+- 판정: LGTM YES | LGTM NO | LGTM UNKNOWN
+- 판정 근거: <review-<slug>.md Run #N 의 "판정 근거" 줄 그대로 인용>
+- 다음 step: step6 진입 | step3 회송 | 슬러그 일시정지
+- 이번 루프 회차: <progress-<slug>.md 의 step5 LGTM:NO 누적 카운터>회 (동일 문제 유형 enum = YES | NO)
+- 자기 점검 (자체 수정 우회): 이번 fail 후 메인 Claude 가 코드/구현 파일을 직접 수정했는가? YES | NO  (※ git diff 자동 검증 — workflow.md "회송 경로 실행 보장 (3)" 참조)
+- fallback_used: Codex | code-review skill (self-review) | none
+- assistant 제거 호출 여부: YES | NO | N/A   (※ fallback = code-review skill 일 때만 YES 가능. workflow.md self-bias 차단 정책)
+```
+
+**판정 규칙**:
+- 위 자기 점검이 `YES` 이거나 git diff 자동 검증과 불일치하면 **즉시 워크플로우 중단**. `review-<slug>.html` 에 "정책 위반: 메인 자체 수정 우회 — workflow 중단" 기록 후 사용자에게 보고. (자체 수정한 변경분을 step3 회송 절차에서 정식 plan 으로 반영해야 함 — 메인이 LGTM:YES 처리하는 anti-pattern 차단)
+- **fallback = code-review skill (self-review) 이고 assistant 제거 = NO 이고 판정 = LGTM YES 면 → LGTM:UNKNOWN 으로 강등** + 슬러그 일시정지. self-review 의 ECE 39–74% (arXiv 2508.06225) 로 인해 LGTM:YES 신뢰 불가. Anthropic auto-mode 의 *입력 컨텍스트 분리* 와 동일 원칙으로, assistant 메시지를 입력에서 제거한 별도 호출 (assistant 제거 = YES) 만 LGTM:YES 허용.
+- "이번 루프 회차" 가 5 이상이고 "동일 문제 유형 enum = YES" 이면 **자동 중단** + report 에 "동일 문제 5회 반복으로 자동 중단" 기록. 유형 enum 은 workflow.md "회송 경로 실행 보장 (5)" 의 13종 중 하나.
+- 그 외 LGTM:NO 면 step3 회송 분기로 진입 — Step3 의 "회송 진입 모드" 절차에 따라 진행.
+- LGTM:UNKNOWN 이면 다음 step 진입하지 않고 슬러그를 `paused-by-unknown` 으로 마킹 + report 에 사유 기록. 무인 모드(noask) 면 다음 슬러그 자동 시작.
+
+## 루프 카운터 누적 의무 (CRITICAL)
+
+위 보고의 "이번 루프 회차" 값은 메인 Claude 가 `progress-<slug>.md` 에 다음 섹션을 누적 갱신해서 산출한다. 누락 시 5회 게이트가 발동되지 않음 = 정책 위반.
+
+```markdown
+## Loop Counter
+- step5 LGTM:NO 누적: <N>회
+  - 직전 회차 결함 유형·파일: <유형 enum> @ <파일경로>
+  - 동일 문제 여부 판정: 직전 회차와 (유형 enum + 파일경로 normalized) 조합이 동일 = YES, 다르면 NO
+- step6 FAIL 누적: <M>회 (step6 가 채움)
+```
+
+매 LGTM:NO 발생 시 N 을 1 증가시키고, 직전 회차 결함 유형·파일과 비교해 동일 문제 여부를 라벨링.
+
+**유형 enum 13종 (workflow.md "회송 경로 실행 보장 (5)" 와 동일)**: `TYPE_ERROR | NULL_REFERENCE | PERMISSION_DENIED | RESOURCE_NOT_FOUND | RACE_CONDITION | LOGIC_ERROR | IO_FAILURE | TIMEOUT | API_CONTRACT | SECURITY | TEST_COVERAGE | BUILD_FAILURE | OTHER`. enum 외 값으로 적으면 progress 검증 시 정책 위반으로 기록. OTHER 5회 누적 시 라벨링 정밀도 부족 신호로 사용자 alert.

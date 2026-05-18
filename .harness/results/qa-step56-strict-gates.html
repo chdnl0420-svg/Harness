@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>qa — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.ok{background:rgba(57,210,142,.16);color:var(--ok)}
+.badge.warn{background:rgba(243,168,71,.16);color:var(--warn)}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+.callout{border-left:3px solid var(--accent);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+.callout.ok{border-left-color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>🧪 qa · step56-strict-gates · Round 1</h1>
+<span class="meta">자동화 도구 = Grep · 문서 변경 검증</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="verdict">판정</button>
+<button role="tab" aria-selected="false" data-tab="deps">의존성 점검</button>
+<button role="tab" aria-selected="false" data-tab="results">불변식 결과</button>
+<button role="tab" aria-selected="false" data-tab="gate">결정 보고</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="verdict" class="active">
+<h3>Round 1 · 최종 판정</h3>
+<div class="card" style="font-size:18px; text-align:center; padding:18px"><span class="badge ok" style="font-size:14px; padding:3px 12px">PASS</span></div>
+
+<table>
+<tbody>
+<tr><td style="width:130px">테스트 가이드</td><td>도메인 §불변식 I1~I8 (문서 grep 검증 8개)</td></tr>
+<tr><td>테스트 도구</td><td>Grep (file content) — Claude Code 내장 (자동화 도구 = 가용)</td></tr>
+<tr><td>대상 파일</td><td><code>docs/workflow.md</code>, <code>docs/steps/step5-review.md</code>, <code>docs/steps/step6-qa.md</code></td></tr>
+<tr><td>커버리지</td><td>8/8 불변식 통과 (100%)</td></tr>
+<tr><td>결함</td><td>없음 (CRITICAL/HIGH/MEDIUM 모두 0건)</td></tr>
+</tbody>
+</table>
+
+<div class="callout ok">
+<strong>PASS 근거:</strong> 도메인 §불변식 I1~I8 (보강 5건 + 회귀 차단 1건) 모두 grep match count &gt; 0. 의도한 모든 패치가 정확한 파일·정확한 섹션에 들어갔음을 객관적으로 확인.
+</div>
+</section>
+
+<section role="tabpanel" id="deps">
+<h3>의존성 사전 점검 (step6 §1b)</h3>
+<table>
+<thead><tr><th>도구</th><th>상태</th><th>비고</th></tr></thead>
+<tbody>
+<tr><td><code>mcp__Claude_in_Chrome__*</code></td><td>가용 (deferred, 미사용)</td><td>본 작업은 브라우저 테스트 N/A — 문서 변경</td></tr>
+<tr><td><code>mcp__Claude_Preview__*</code></td><td>가용 (deferred, 미사용)</td><td>동일</td></tr>
+<tr><td>프로젝트 Playwright</td><td>없음</td><td>master harness skill 디렉토리는 도구 모음, app 없음</td></tr>
+<tr><td><strong>Grep 도구 (실제 사용)</strong></td><td><strong>가용</strong></td><td>본 작업의 진짜 자동화 도구</td></tr>
+</tbody>
+</table>
+<p style="font-size:12px;color:var(--sub);margin-top:4px">→ 브라우저 자동화 도구 셋 중 1개라도 가용 + 문서 검증 도구 (Grep) 가용 → BLOCKED 아님. 단, 본 작업은 문서 변경이라 브라우저 도구 자체가 부적합 — Grep 으로 충분.</p>
+</section>
+
+<section role="tabpanel" id="results">
+<h3>불변식 grep 검증 결과 (I1~I8)</h3>
+<table>
+<thead><tr><th style="width:36px">#</th><th>패턴</th><th>대상 파일</th><th style="width:50px">match</th><th style="width:50px">상태</th></tr></thead>
+<tbody>
+<tr><td>I1</td><td><code>fallback_used</code></td><td>step5-review.md</td><td>1</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I2</td><td><code>assistant 제거</code></td><td>step5-review.md</td><td>2</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I3</td><td><code>LGTM:UNKNOWN</code></td><td>step5-review.md</td><td>2</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I4</td><td><code>TYPE_ERROR|NULL_REFERENCE|BUILD_FAILURE</code></td><td>workflow.md</td><td>2 (3가지 키워드 함께 등장)</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I5a</td><td><code>step4_commit_sha</code></td><td>workflow.md</td><td>2</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I5b</td><td><code>git diff</code></td><td>workflow.md</td><td>3</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I6</td><td><code>paused-by-blocked</code></td><td>step6-qa.md</td><td>3</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I7</td><td><code>의존성 사전 점검</code></td><td>step6-qa.md</td><td>1</td><td><span class="badge ok">PASS</span></td></tr>
+<tr><td>I8</td><td><code>회송 경로 실행 보장|Loop Counter</code></td><td>workflow.md</td><td>4</td><td><span class="badge ok">PASS (회귀 차단)</span></td></tr>
+</tbody>
+</table>
+</section>
+
+<section role="tabpanel" id="gate">
+<h3>다음 step 결정 보고 (게이트)</h3>
+<table>
+<tbody>
+<tr><td style="width:200px">판정</td><td>PASS</td></tr>
+<tr><td>판정 근거</td><td>I1~I8 8개 불변식 모두 grep match &gt; 0. CRITICAL/HIGH 결함 0건.</td></tr>
+<tr><td>다음 step</td><td>step7 진입 (사람-읽기 점검 — 게이트 아님)</td></tr>
+<tr><td>이번 루프 회차</td><td>1회 (초회, 동일 결함 N/A)</td></tr>
+<tr><td>자기 점검 (자체 수정 우회)</td><td>NO — step4 commit 후 step5·6 동안 추가 수정 없음 (review/grep 만 실행). step4 변경 자체는 정식 step4 작업이지 우회 수정 아님.</td></tr>
+<tr><td>fallback_used</td><td>none (의도된 검증 도구 = Grep 사용, 도우미 호출 없음)</td></tr>
+<tr><td>의존성 점검 결과</td><td>Claude_in_Chrome=가용 (미사용), Claude_Preview=가용 (미사용), Playwright=없음, Grep=가용 (사용)</td></tr>
+</tbody>
+</table>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

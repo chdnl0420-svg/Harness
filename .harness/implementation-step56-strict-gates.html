@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>implementation — step56-strict-gates</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+pre{background:var(--muted);padding:8px 10px;border-radius:6px;overflow:auto;font-size:11.5px;line-height:1.5;margin:6px 0;white-space:pre-wrap}
+.callout{border-left:3px solid var(--accent);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>🔧 implementation · step56-strict-gates</h1>
+<span class="meta">5개 보강 권고 → master harness skill 문서 패치 계획</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="files">대상 파일</button>
+<button role="tab" aria-selected="false" data-tab="impact">영향 영역</button>
+<button role="tab" aria-selected="false" data-tab="steps">구현 순서</button>
+<button role="tab" aria-selected="false" data-tab="test">테스트 전략</button>
+<button role="tab" aria-selected="false" data-tab="risk">위험·롤백</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="files" class="active">
+<h3>변경 대상 파일 목록</h3>
+<table>
+<thead><tr><th>파일</th><th>종류</th><th>예상 변경량</th></tr></thead>
+<tbody>
+<tr><td><code>C:\Users\NX3GAMES\.claude\skills\harness\docs\workflow.md</code></td><td>수정</td><td>§"회송 경로 실행 보장" (3) 보강 + 끝부분에 §"결함 유형 enum" 추가 (~50줄)</td></tr>
+<tr><td><code>C:\Users\NX3GAMES\.claude\skills\harness\docs\steps\step5-review.md</code></td><td>수정</td><td>§"다음 step 결정 보고" 5필드→7필드, LGTM:UNKNOWN 강등 룰, git diff 룰 (~30줄)</td></tr>
+<tr><td><code>C:\Users\NX3GAMES\.claude\skills\harness\docs\steps\step6-qa.md</code></td><td>수정</td><td>§흐름에 의존성 사전 점검 step 추가, BLOCKED (D) 분기 추가, 결정 보고 git diff 룰 (~40줄)</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+신규 파일 없음. 기존 .md 만 surgical edit. <code>workflow.md / step5-review.md / step6-qa.md</code> 는 6.2 예외에 해당 (skill 내부 reference doc, 외부 라이브러리에 준함) → .md 유지.
+</div>
+</section>
+
+<section role="tabpanel" id="impact">
+<h3>기존 코드 영향 영역</h3>
+<table>
+<thead><tr><th>기존 패턴</th><th>위치</th><th>충돌 여부</th></tr></thead>
+<tbody>
+<tr><td>5필드 결정 보고 양식</td><td>step5-review.md line 61-68, step6-qa.md line 62-69</td><td>7필드로 확장 — 양식 자체 호환</td></tr>
+<tr><td>Loop Counter 유형 라벨</td><td>step5-review.md line 79-85, workflow.md line 184-192</td><td>free-form → enum 강제 — 기존 라벨도 enum 에 포함되도록 매핑</td></tr>
+<tr><td>BLOCKED 분기 (A/B/C)</td><td>step6-qa.md line 33-37, line 75</td><td>(D) 추가 — A/B/C 그대로 유지</td></tr>
+<tr><td>step6 흐름 번호 (1~6)</td><td>step6-qa.md line 11-37</td><td>의존성 사전 점검을 1.5 단계로 삽입 → 기존 1~6 번호 영향 없음 (새 단계 = "1b" 명명)</td></tr>
+<tr><td>자기 점검 항목 "코드 직접 수정"</td><td>step5/6 결정 보고 5필드 양식</td><td>git diff 자동 검증 추가로 객관화 — 기존 항목 유지</td></tr>
+</tbody>
+</table>
+
+<h3>이미 존재하는 비슷한 패턴</h3>
+<ul>
+<li>workflow.md §"적용 검증" (line 202-210) 의 5개 회귀 시나리오 — 이번 보강에도 검증 항목 추가 가능 (선택)</li>
+<li>step6-qa.md §"BLOCKED 판정 기준" — 의존성 사전 점검과 일관성 유지 필요</li>
+</ul>
+</section>
+
+<section role="tabpanel" id="steps">
+<h3>단계별 구현 순서</h3>
+
+<h3 style="margin-top:14px">단계 4-A — workflow.md 보강</h3>
+<table>
+<thead><tr><th style="width:60px">필드</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td>입력</td><td>workflow.md (line 194-196 의 §(3) 자체 수정 우회 차단)</td></tr>
+<tr><td>작업</td><td>(3) 본문에 "git diff <step4_commit_sha>..HEAD 자동 실행으로 자기 점검 객관화" 룰 추가. 그리고 line 199 직후 (5) "결함 유형 enum" 섹션 신규 추가 (13종 enum + OTHER 5회 alert).</td></tr>
+<tr><td>검증</td><td>grep <code>step4_commit_sha</code> AND <code>TYPE_ERROR</code> 둘 다 match</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:10px">단계 4-B — step5-review.md 보강</h3>
+<table>
+<thead><tr><th style="width:60px">필드</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td>입력</td><td>step5-review.md (line 57-73 §"다음 step 결정 보고")</td></tr>
+<tr><td>작업</td><td>5필드 양식에 <code>fallback_used</code>, <code>assistant 제거 호출 여부</code> 줄 추가 (7필드화). 판정 규칙에 "LGTM:UNKNOWN 강등" 룰 추가. 자기 점검 줄 옆에 "git diff 자동 검증" 메모 추가. §"루프 카운터 누적 의무" 본문에 enum 13종 명시 + workflow.md §"결함 유형 enum" 으로 link.</td></tr>
+<tr><td>검증</td><td>grep <code>fallback_used</code> AND <code>LGTM:UNKNOWN</code> AND <code>assistant 제거</code></td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:10px">단계 4-C — step6-qa.md 보강</h3>
+<table>
+<thead><tr><th style="width:60px">필드</th><th>내용</th></tr></thead>
+<tbody>
+<tr><td>입력</td><td>step6-qa.md (line 11-37 §흐름, line 49-56 §BLOCKED 판정 기준, line 58-79 §결정 보고)</td></tr>
+<tr><td>작업</td><td>흐름 1단계 직후 "1b. 의존성 사전 점검" 신규 단계 (Claude_in_Chrome / Claude_Preview / 프로젝트 Playwright 셋 다 NO → 도우미 호출 전 BLOCKED). 분기 6번 BLOCKED 에 <code>(D) paused-by-blocked + 다음 슬러그 자동 시작</code> 추가 (noask 무인 모드 한정). 결정 보고 양식에 fallback_used / assistant 제거 / git diff 자동 검증 (step5 와 동일).</td></tr>
+<tr><td>검증</td><td>grep <code>paused-by-blocked</code> AND <code>의존성</code> AND <code>fallback_used</code></td></tr>
+</tbody>
+</table>
+</section>
+
+<section role="tabpanel" id="test">
+<h3>테스트 전략 — step6 QA 검증 방법</h3>
+<div class="card">
+본 작업은 *문서 패치* 라 자동화 브라우저 도구 부적합. 대신 <strong>Grep 도구 기반 정적 검증</strong>으로 도메인 §불변식 I1~I8 을 확인:
+</div>
+
+<pre>level 1: 텍스트 존재 검증 (8개 불변식)
+  I1: grep "fallback_used"        → step5-review.md
+  I2: grep "assistant 제거"        → step5-review.md
+  I3: grep "LGTM:UNKNOWN"          → step5-review.md
+  I4: grep "TYPE_ERROR" AND "NULL_REFERENCE" AND "BUILD_FAILURE"
+                                   → workflow.md
+  I5: grep "step4_commit_sha" AND "git diff"
+                                   → workflow.md or step5-review.md
+  I6: grep "paused-by-blocked"     → step6-qa.md
+  I7: grep "의존성" AND "mcp__Claude_in_Chrome" or "의존성 점검"
+                                   → step6-qa.md
+  I8: 회귀 차단 — grep "회송 경로 실행 보장" AND "Loop Counter"
+                                   → workflow.md (기존 섹션 그대로 유지)
+
+level 2: 의미 검증 (사람-읽기 1회)
+  - step7 단계에서 변경된 .md 를 처음부터 끝까지 사람-읽기로 읽고
+    문맥상 이상 없는지 확인. 게이트 아님.</pre>
+
+<div class="card">
+<strong>PASS 조건:</strong> I1~I8 모두 grep match. 하나라도 빠지면 FAIL → step3 회송.
+</div>
+</section>
+
+<section role="tabpanel" id="risk">
+<h3>위험·롤백 경로</h3>
+<table>
+<thead><tr><th>위험</th><th>완화</th><th>롤백</th></tr></thead>
+<tbody>
+<tr><td>기존 §"회송 경로 실행 보장" 4메커니즘이 우발적으로 사라짐</td><td>Edit 의 old_string 을 좁게 잡아 surgical 보장. step6 I8 으로 회귀 검증.</td><td><code>git checkout HEAD -- docs/workflow.md</code></td></tr>
+<tr><td>step6 흐름 번호 (1~6) 가 깨져 다른 docs 의 cross-reference 무효화</td><td>새 단계는 "1b" 로 명명, 1~6 번호 그대로 유지.</td><td>동일 git checkout</td></tr>
+<tr><td>enum 13종이 너무 좁아 실 결함을 OTHER 로 라벨링 폭주</td><td>OTHER 5회 누적 시 사용자 alert + 학습 파일에 신규 enum 후보 제안.</td><td>enum 확장은 후속 워크플로우로</td></tr>
+<tr><td>BLOCKED (D) 분기 추가가 단일 슬러그 모드에서 오작동</td><td>(D) 본문에 "무인 모드 + 슬러그 큐 > 1 일 때만 적용" 명시. 그 외엔 (C) 와 동일.</td><td>—</td></tr>
+<tr><td>git diff 자동 검증이 본 master skill 디렉토리에서 working tree 변경과 step4 변경을 구분 못 함</td><td>step4 진입 시 <code>step4_commit_sha = $(git rev-parse HEAD)</code> 자동 기록. 비교는 그 SHA 와 현재 working tree.</td><td>—</td></tr>
+</tbody>
+</table>
+
+<h3>롤백 시나리오</h3>
+<ul>
+<li>step5 LGTM:NO 발생 시 → step3 회송, plan 재작성 후 step4 재실행. 5회 한도 적용.</li>
+<li>step6 FAIL (I1~I8 중 일부 미match) 시 → step3 회송. 빠진 grep 패턴을 plan 에 명시 후 step4 재실행.</li>
+<li>step8 push 실패 시 → 재시도 1회 → 그래도 실패면 로컬 commit only 로 처리 (noask 정책).</li>
+</ul>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

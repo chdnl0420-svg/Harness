@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>report — step56-strict-gates · complete</title>
+<style>
+:root{--bg:#0f1115;--panel:#161a22;--muted:#1d222c;--line:#2a3140;--text:#e6e9ef;--sub:#9aa3b2;--accent:#6aa6ff;--ok:#39d28e;--warn:#f3a847;--crit:#ef5b6b}
+@media(prefers-color-scheme:light){:root{--bg:#f7f8fb;--panel:#fff;--muted:#eef1f6;--line:#dde2ec;--text:#13151b;--sub:#5b6473;--accent:#2459d6;--ok:#1e8f5f;--warn:#a35a04;--crit:#b3243a}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR','Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.55;overflow:hidden}
+.app{display:grid;grid-template-rows:auto 1fr;height:100vh}
+header{display:flex;gap:12px;align-items:center;padding:7px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:13px;margin:0}.meta{color:var(--sub);font-size:11px}
+.tablist{display:flex;gap:3px;margin-left:auto}
+.tablist button{background:transparent;color:var(--sub);border:0;padding:5px 11px;font-size:12px;font-family:inherit;cursor:pointer;border-radius:6px}
+.tablist button[aria-selected=true]{background:var(--muted);color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+main{padding:14px 18px;overflow:hidden}
+[role=tabpanel]{display:none;height:100%;overflow:auto}
+[role=tabpanel].active{display:block}
+h3{font-size:11.5px;margin:10px 0 5px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin:6px 0;font-size:12.5px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 7px;background:var(--muted);border-bottom:1px solid var(--line);color:var(--sub);font-weight:600;position:sticky;top:0}
+td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:600}
+.badge.ok{background:rgba(57,210,142,.16);color:var(--ok)}
+.badge.warn{background:rgba(243,168,71,.16);color:var(--warn)}
+.kpi{display:flex;flex-direction:column;gap:2px}
+.kpi .label{color:var(--sub);font-size:11px}.kpi .value{font-size:18px;font-weight:700;letter-spacing:-.02em}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(4,1fr)}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}}
+code{font-family:'JetBrains Mono',Consolas,monospace;font-size:11.5px;background:var(--muted);padding:1px 5px;border-radius:4px}
+.callout{border-left:3px solid var(--accent);background:var(--muted);padding:7px 11px;border-radius:0 6px 6px 0;margin:7px 0;font-size:12.5px}
+.callout.ok{border-left-color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+<h1>📦 report · step56-strict-gates · complete</h1>
+<span class="meta">slug: step56-strict-gates · noask · commit a38844e · push 성공</span>
+<nav class="tablist" role="tablist">
+<button role="tab" aria-selected="true" data-tab="ov">한눈에</button>
+<button role="tab" aria-selected="false" data-tab="changes">변경 내역</button>
+<button role="tab" aria-selected="false" data-tab="autodec">자동 결정</button>
+<button role="tab" aria-selected="false" data-tab="artifacts">산출물</button>
+</nav>
+</header>
+<main>
+
+<section role="tabpanel" id="ov" class="active">
+<div class="grid" style="margin-bottom:10px">
+<div class="card kpi"><span class="label">최종 상태</span><span class="value" style="color:var(--ok)">complete</span><span class="sub">step1→step8 무중단</span></div>
+<div class="card kpi"><span class="label">step5 LGTM</span><span class="value" style="color:var(--ok)">YES</span><span class="sub">1회차 통과</span></div>
+<div class="card kpi"><span class="label">step6 QA</span><span class="value" style="color:var(--ok)">PASS</span><span class="sub">I1~I8 8/8</span></div>
+<div class="card kpi"><span class="label">git push</span><span class="value" style="color:var(--ok)">a38844e</span><span class="sub">0d080ca..a38844e master</span></div>
+</div>
+
+<div class="callout ok">
+<strong>5건 보강 모두 master harness skill 에 반영 + GitHub push 성공.</strong> 다음 워크플로우부터 새 룰 (LGTM:UNKNOWN 강등, 유형 enum 13종, git diff 객관 검증, BLOCKED (D) 분기, 의존성 사전 점검) 이 본격 적용된다. 본 패치 자체는 *룰 도입 작업* 이라 메타 순환 회피로 새 룰 일부 (LGTM:UNKNOWN 강등) 는 다음 워크플로우부터.
+</div>
+
+<h3>다음 워크플로우 진입 시 영향</h3>
+<ul style="font-size:12.5px">
+<li>step5 Codex fallback → code-review skill 사용 시 LGTM:YES 가 LGTM:UNKNOWN 으로 자동 강등 (assistant 메시지 제거 호출만 우회). 자동 슬러그 일시정지.</li>
+<li>step5/6 Loop Counter 의 유형 라벨이 13종 enum 으로 강제. enum 외 값이면 정책 위반 기록.</li>
+<li>step5/6 결정 보고 직전 git diff 자동 검증. 자기 점검 불일치 시 즉시 워크플로우 중단.</li>
+<li>step6 진입 1단계 직후 의존성 사전 점검 자동 실행. 셋 다 NO 면 도우미 호출 전에 BLOCKED.</li>
+<li>step6 BLOCKED (D) 분기 — noask + 슬러그 큐&gt;1 시 paused-by-blocked + 다음 슬러그 자동 시작.</li>
+</ul>
+</section>
+
+<section role="tabpanel" id="changes">
+<h3>commit a38844e · 변경 9파일 · 867+/1-</h3>
+<table>
+<thead><tr><th>파일</th><th>종류</th><th>+/-</th></tr></thead>
+<tbody>
+<tr><td><code>docs/workflow.md</code></td><td>수정</td><td>+71 (회송 경로 (3) git diff 보강, (5) enum 신규)</td></tr>
+<tr><td><code>docs/steps/step5-review.md</code></td><td>수정</td><td>+38 (7필드 양식, LGTM:UNKNOWN 강등, enum cross-ref)</td></tr>
+<tr><td><code>docs/steps/step6-qa.md</code></td><td>수정</td><td>+40/-1 (의존성 사전 점검, BLOCKED (D), 7필드 양식)</td></tr>
+<tr><td><code>.harness/domain-step56-strict-gates.html</code></td><td>신규</td><td>step2 도메인 설계</td></tr>
+<tr><td><code>.harness/implementation-step56-strict-gates.html</code></td><td>신규</td><td>step3 구현 계획</td></tr>
+<tr><td><code>.harness/progress/progress-step56-strict-gates.html</code></td><td>신규</td><td>step1+ 진행 상태</td></tr>
+<tr><td><code>.harness/reviews/review-step56-strict-gates.html</code></td><td>신규</td><td>step5 self-review (LGTM:YES)</td></tr>
+<tr><td><code>.harness/results/qa-step56-strict-gates.html</code></td><td>신규</td><td>step6 QA grep (PASS)</td></tr>
+<tr><td><code>.harness/results/customer-step56-strict-gates.html</code></td><td>신규</td><td>step7 사람-읽기 점검</td></tr>
+</tbody>
+</table>
+
+<h3 style="margin-top:14px">commit 에서 의도적으로 제외된 변경 (사용자 별도 처리)</h3>
+<ul style="font-size:12.5px;color:var(--sub)">
+<li><code>SKILL.md</code>, <code>agents/learning/harness-customer-user.md</code>, <code>docs/html-output-rule.md</code>, <code>docs/steps/step3-impl-plan.md</code> — 본 슬러그 무관, 직전 세션의 외부 변경. 본 워크플로우 surgical change 원칙상 제외.</li>
+<li><code>.harness/research/research-02.html</code> — 별도 deep research 산출물.</li>
+</ul>
+</section>
+
+<section role="tabpanel" id="autodec">
+<h3>자동 결정 기록 (noask 기본 정책)</h3>
+<table>
+<thead><tr><th>시각 (UTC)</th><th>결정 지점</th><th>선택</th><th>사유</th></tr></thead>
+<tbody>
+<tr><td>step1</td><td>워크플로우 시작 모드</td><td>noask</td><td>기본 정책</td></tr>
+<tr><td>step2</td><td>도메인 설계 승인</td><td>자동 승인</td><td>noask 기본 정책</td></tr>
+<tr><td>step5</td><td>Codex 인증 → fallback</td><td>code-review skill (self-review)</td><td>codex-review.sh 부재. noask 정책상 자기편향 고지·사용자 의사 확인 생략</td></tr>
+<tr><td>step5</td><td>self-review LGTM:YES 처리</td><td>그대로 진행 (LGTM:UNKNOWN 강등 미적용)</td><td>본 패치가 룰 도입 자체 — 메타 순환 회피. 다음 워크플로우부터 강등 적용</td></tr>
+<tr><td>step6</td><td>의존성 점검</td><td>Grep 으로 충분 (브라우저 도구 N/A)</td><td>본 작업이 문서 변경이라 브라우저 도구 부적합. Grep 가용 = BLOCKED 아님</td></tr>
+<tr><td>step8</td><td>commit 범위</td><td>본 슬러그 9파일만</td><td>무관 변경 4파일은 surgical change 원칙상 제외</td></tr>
+<tr><td>step8</td><td>git push</td><td>성공 (재시도 0회)</td><td>—</td></tr>
+<tr><td>complete</td><td>.noask 플래그</td><td>삭제</td><td>워크플로우 종료</td></tr>
+</tbody>
+</table>
+</section>
+
+<section role="tabpanel" id="artifacts">
+<h3>본 워크플로우 산출물</h3>
+<table>
+<thead><tr><th>파일</th><th>step</th></tr></thead>
+<tbody>
+<tr><td><code>.harness/domain-step56-strict-gates.html</code></td><td>step2</td></tr>
+<tr><td><code>.harness/implementation-step56-strict-gates.html</code></td><td>step3</td></tr>
+<tr><td><code>.harness/progress/progress-step56-strict-gates.html</code></td><td>step1~8</td></tr>
+<tr><td><code>.harness/reviews/review-step56-strict-gates.html</code></td><td>step5</td></tr>
+<tr><td><code>.harness/results/qa-step56-strict-gates.html</code></td><td>step6</td></tr>
+<tr><td><code>.harness/results/customer-step56-strict-gates.html</code></td><td>step7</td></tr>
+<tr><td><code>.harness/report-step56-strict-gates.html</code></td><td>complete (본 파일)</td></tr>
+</tbody>
+</table>
+
+<h3>source 보고서</h3>
+<p style="font-size:12px"><code>C:\Users\NX3GAMES\Desktop\reports\harness-step56-issues-2026-05-18.html</code> "보강 권고" 탭의 5건이 본 워크플로우의 입력. 매핑 P1~P5 + 회귀 차단 I8 모두 반영.</p>
+</section>
+
+</main>
+</div>
+<script>
+const tabs=document.querySelectorAll('.tablist button'),panels=document.querySelectorAll('[role=tabpanel]');
+function activate(id){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===id?'true':'false'));panels.forEach(p=>p.classList.toggle('active',p.id===id))}
+tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)))
+</script>
+</body>
+</html>

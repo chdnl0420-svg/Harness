@@ -2,44 +2,25 @@
 
 ---
 
-## 실행 옵션
+## 실행 옵션 (2026-05-20 단순화 — agent → skill 통합)
 
-### 기본 모드 (옵션 없음)
+별도 플래그 없음. 모든 harness-* 단위가 *skill* 로 통합 (이전 `--noagent` 폐기). 메인 Claude 가 `Skill` 도구로 각 단위 호출 — Task subagent 별도 컨텍스트 가치는 *외부 CLI (codex exec)* 와 *MCP 브라우저 도구* 만 유지.
+
+### 통합 모드 (default)
 
 | step | 수행 주체 | 비고 |
 |------|----------|------|
-| step2 도메인 설계 | `plan` skill (메인 Claude 가 직접 수행) | 사용자 의도 정확 이해·연속성 |
-| step3 구현 계획 | `plan` skill (메인 Claude) | step2 연속성 |
-| step4 구현 | 메인 Claude 직접 | — |
-| step5 리뷰 | **Codex CLI** (subagent 아님, 그대로 유지) | Codex 불가 시 fallback: `code-review` skill |
-| step6 QA | **`harness-qa-engineer` subagent** | 테스터 페르소나 — 결과 품질 위해 subagent 유지 |
-| step7 커스터머 | **`harness-customer-user` subagent** | 일반인 페르소나 — subagent 유지 |
-| step8 commit | 메인 Claude 직접 | 변경 맥락 직접 봄 |
+| step2 도메인 설계 | `harness-plan` skill (noask 동작) | 한 줄 목표 → 6 카테고리 합리적 가정 + Open Questions. `/harness-ask` 는 `harness-plan-ask` (인터랙티브) |
+| step3 구현 계획 | `plan` skill — Chunks 임계값 통과 시 vertical slice 분해 + chunk loop | step2 연속성. 자세히: [steps/step3-impl-plan.md Chunks 분해 절차](steps/step3-impl-plan.md) |
+| step4 구현 | 메인 Claude 직접. 빌드 실패 시 `build-fix` skill 또는 언어별 `*-build-resolver` agent 자동 호출 | TDD 모드면 `tdd` skill 사이클 (또는 `tdd-guide` agent) |
+| step5 리뷰 | **Codex CLI** (`codex exec` 외부) + 보조: `code-review` skill / `code-reviewer` agent (fallback), `security-review` skill / `security-reviewer` agent (보안 민감 코드) | Codex 외부 CLI 라 그대로. self-review bias 차단을 위해 외부 verifier 유일 보존 |
+| step6 QA | `harness-qa-engineer` agent (Task 도구) | 페르소나 객관성 보존 위해 subagent 유지. 자동화 도구 (MCP 브라우저) 가용성이 진짜 객관 게이트 |
+| step7 커스터머 | `harness-customer-user` skill 또는 agent | 페르소나 3개 중 하나. 자세히: [steps/step7-customer.md](steps/step7-customer.md) |
+| step8 commit | 메인 Claude 직접 + Chunks 모드면 chunk 별 incremental commit | — |
 
-요약: **QA / 커스터머 step 만 subagent, 나머지는 skill 또는 메인 Claude 직접.** Codex 리뷰는 외부 CLI 이므로 그대로.
-
-### `--noagent` 모드
-
-`/harness --noagent ...` 로 호출되면 **모든 harness-* subagent(Task tool 위임)을 일절 사용하지 않는다 — 기본 모드에서 subagent 로 돌던 step6/step7 까지 포함.** Workflow 자체는 step1 → complete 까지 동일하게 진행하되, subagent 자리는 **대체 가능한 skill 이 있으면 그 skill 을 호출**하고, 없으면 메인 Claude 가 직접 수행한다.
-
-규칙:
-- `harness-planner`, `harness-architect`, `harness-tdd-guide`, `harness-code-reviewer`, `harness-security-reviewer`, `harness-build-resolver`, `harness-qa-engineer`, `harness-customer-user` 등 모든 harness subagent 호출 금지.
-- 외부 CLI(Codex wrapper) 은 subagent 가 아니므로 그대로 사용.
-- Step 자체 규칙(CRITICAL 섹션 참고) 은 모두 그대로 — `--noagent` 는 "어떻게 수행하는가" 만 바꿀 뿐 "어떤 step 을 거치는가" 는 바꾸지 않는다.
-- 학습 데이터(`.harness/agents/learning/*.md`) 는 subagent 가 호출되지 않으므로 자동 prepend 가 일어나지 않음 → 메인 Claude 가 해당 step 시작 전 **"Learning Prepend 계약"** 의 1·2단계 (파일 경로 식별 + Read) 를 본인이 직접 수행해 본문을 컨텍스트에 올린다. 예: step6 은 `harness-qa-engineer.md`, step7 은 `harness-customer-user.md`.
-
-#### `--noagent` 모드의 step6 / step7 처리
-
-기본 모드와 달라지는 곳은 step6, step7 뿐이다 (나머지는 기본 모드도 이미 skill / 메인 직접).
-
-| step | `--noagent` 시 수행 | 비고 |
-|------|--------------------|------|
-| step6 QA | `browser-qa` skill (없으면 `e2e`, 그것도 없으면 `verify`, 다 없으면 메인 직접 수동 테스트 보고) | 페르소나 가치 잃음 — 결과 품질 저하 가능 |
-| step7 커스터머 | `browser-qa` skill (페르소나 입혀서, 없으면 메인이 일반인 흉내) | 동일 |
-
-플래그 파싱:
-- `--noagent` 가 사용자 입력 어디든 포함되어 있으면 켜진다.
-- step1 에서 `.harness/.noagent` 파일로 상태를 기록해 두고, 이후 step 에서 매번 참조.
+**외부 의존성 (subagent 가치 유지 영역)**:
+- **Codex CLI** (`codex exec`) — step5 외부 verifier. self-review bias 차단의 유일한 진짜 외부 단위.
+- **MCP 브라우저 도구** (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) — step6/step7 의 자동화 객관 게이트.
 
 ---
 
@@ -49,11 +30,9 @@
 
 ### 단계 (모든 호출 공통)
 
-1. **학습 파일 경로 식별 (Hybrid)**
+1. **학습 파일 경로 식별** (공용만 — 2026-05-20 정합화로 프로젝트 learning 폐기)
    - 공용: `~/.claude/skills/harness/agents/learning/<agent-name>.md`
-   - 프로젝트: `<PROJECT_ROOT>/.harness/agents/learning/<agent-name>.md` (있을 때만)
-   - `<PROJECT_ROOT>` 는 메인 repo 루트. worktree 안이면 `git rev-parse --git-common-dir` 의 부모.
-2. **Read 도구로 두 파일 본문을 실제로 읽는다.** 기억·요약·추측 금지. 파일 없으면 "(없음)" 으로 명시.
+2. **Read 도구로 파일 본문을 실제로 읽는다.** 기억·요약·추측 금지. 파일 없으면 "(빈 파일)" 으로 명시.
 3. **호출 prompt 의 맨 앞에 아래 `Required Header` 양식 그대로 prepend.** 본문 통째로 붙이며, 절대 잘라내지 않는다.
 4. **본문 끝에 본 작업 요청을 붙인다.** 즉 도우미가 받는 prompt 순서는 `Required Header → 본 작업` 이다.
 
@@ -63,16 +42,12 @@
 ## Prior Learning (READ FIRST — DO NOT SKIP)
 
 **학습 파일 (공용)**: <절대경로>/agents/learning/<agent-name>.md
-**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/<agent-name>.md  (없으면 "(없음)")
 
 ### 공용 학습 본문
 <위 공용 파일을 Read 한 본문 전체 — 빈 파일이면 "(빈 파일)" 명시>
 
-### 프로젝트 학습 본문
-<위 프로젝트 파일을 Read 한 본문 전체 — 없으면 "(없음)">
-
 ### 적용 의무
-- 본 작업 시작 전 위 두 본문을 처음부터 끝까지 읽고, 본 작업에 적용 가능한 항목을 머릿속에 정리한다.
+- 본 작업 시작 전 위 본문을 처음부터 끝까지 읽고, 본 작업에 적용 가능한 항목을 머릿속에 정리한다.
 - 작업 중 학습과 충돌하는 결정을 내리면, 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
 - 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략 — templates/learning-proposal.md 형식).
 - 학습 파일을 직접 Edit/Write 하지 않는다. 제안만 한다.
@@ -87,13 +62,13 @@
 
 각 `harness-*` agent 는 prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면** 즉시 한 줄로 거부하고 종료한다: `[BLOCKED] Prior Learning header 누락 — workflow.md "Learning Prepend 계약" 위반.` 그 외 작업 일체 금지.
 
-### `.harness/.noagent` 모드일 때
+### 메인 Claude 가 페르소나 자리를 직접 수행할 때
 
-subagent 를 호출하지 않으므로 위 prepend 가 의미 없어 보이지만, **메인 Claude 자신이 그 step 을 수행하기 직전에 동일하게 두 학습 파일을 Read** 하고 본문을 본인 컨텍스트에 올린다. 누락하면 학습이 반영 안 됨 = 위반.
+subagent 호출 없이 메인 Claude 가 페르소나 작업을 직접 수행하는 경우에도 **메인 Claude 자신이 그 step 을 수행하기 직전에 동일하게 공용 학습 파일을 Read** 하고 본문을 본인 컨텍스트에 올린다. 누락하면 학습이 반영 안 됨 = 위반. (`.harness/.noagent` 마커는 2026-05-20 폐기.)
 
 ### 적용 범위
 
-`harness-planner`, `harness-architect`, `harness-tdd-guide`, `harness-code-reviewer`, `harness-security-reviewer`, `harness-build-resolver`, `harness-deep-researcher`, `harness-qa-engineer`, `harness-customer-user` — **모두 동일.** 외부 CLI(Codex) 는 subagent 가 아니므로 적용 안 됨.
+`harness-deep-researcher`, `harness-qa-engineer`, `harness-customer-user` 3개 페르소나 도우미 — **이들만 적용.** 나머지 일반 skill/agent (`plan`, `tdd`, `code-review`, `security-review`, `build-fix` 등) 는 harness 전용이 아니므로 본 학습 계약 대상이 아니다. 외부 CLI(Codex) 도 subagent 가 아니므로 적용 안 됨.
 
 ---
 
@@ -121,15 +96,16 @@ step1. harness 초기화
    ↓
 step2. 도메인 설계
    ↓
-step3. 구현 계획
+step3. 구현 계획 (Chunks 임계값 판정 — 통과 시 chunks-overview + chunk-1 plan, 미통과 시 단일 plan)
    ↓
-step4. 구현
+step4. 구현 (Chunks 모드면 현 chunk_i 만)
    ↓
-step5. 리뷰
+step5. 리뷰 (chunks 모드면 chunk_i 의 변경 파일만, 회송 카운터 chunk 별 독립 5회)
    │
    ├─ LGTM: NO ──> step3 (구현 계획 수정)
-   │              * 무제한 반복
-   │              * 동일 문제 5회 반복 시 → 중단 + 사용자에게 알림
+   │              * 무제한 반복 — 서로 다른 문제로 LGTM:NO 가 누적되는 한 계속 진행
+   │              * **동일 문제** (같은 (유형 enum, 파일경로) 튜플) 5회 반복 시에만 → 중단 + 사용자에게 알림
+   │              * 즉, 매번 다른 결함을 새로 해결 중이면 중단되지 않음
    │
    └─ LGTM: YES
         ↓
@@ -137,15 +113,32 @@ step6. QA 테스트
    * **선행**: test-guide-<slug>.md 작성/갱신 후 도우미에 참조시킴
    │
    ├─ FAIL ──> step3 (구현 계획 수정)
-   │           * 무제한 반복
-   │           * 동일 결함 5회 반복 시 → 중단 + 사용자에게 알림
+   │           * 무제한 반복 — 서로 다른 결함이 누적되는 한 계속 진행
+   │           * **동일 결함** (같은 (유형 enum, 파일경로) 튜플) 5회 반복 시에만 → 중단 + 사용자에게 알림
    │
-   ├─ BLOCKED ──> 사용자 결정 요청
-   │              (A) 환경 수정 후 재시도
-   │              (B) 이 step 스킵 승인 (사용자 명시적 동의 필요)
-   │              (C) 워크플로우 중단
+   ├─ BLOCKED ──> **자동 결정 분기** (사용자에게 묻지 않음)
+   │              * 1차: 자동 재시도 1회 (의존성·환경 재점검 + 도우미 재호출)
+   │              * 재시도 fail + 다중 슬러그 → (D) paused-by-blocked + 다음 슬러그
+   │              * 재시도 fail + 단일 슬러그 → (C) 자동 중단
+   │              * 매 BLOCKED 회차마다 progress 의 step6 BLOCKED 누적 카운터 + 사유 enum 기록
+   │              * **동일 사유 BLOCKED 5회 누적 시에만 → AskUserQuestion** (noask 정책 2번째 예외)
+   │                · (A) 환경 수정 후 재시도 / (B) 사용자 명시 동의 스킵 / (C) 워크플로우 중단
+   │              * 산출물 게이트 (5b) 1축 NO 시 자동 BLOCKED 강등 — 사유 enum = EVIDENCE_GATE_FAIL
+   │              * BLOCKED 사유 enum 6종: DEPENDENCY_MISSING | EVIDENCE_GATE_FAIL | PERMISSION_DENIED | GUIDE_MISSING | ENV_UNREACHABLE | OTHER
    │
-   └─ PASS
+   ├─ UNKNOWN ──> 슬러그 `paused-by-unknown` 마킹 + report 사유 기록
+   │              * fallback = manual self-test + PASS 라벨 시 자동 강등
+   │              * harness-qa-engineer 호출 0회 + PASS 라벨 시 자동 강등
+   │              * noask 무인 모드면 다음 슬러그 자동 시작
+   │
+   └─ PASS (라벨 추출 규칙 충족 + 산출물 게이트 3축 YES + self-PASS 아닐 때만 인정)
+        ↓
+   ┌─ Chunks 모드 분기 (step3 임계값 통과 시):
+   │   chunk_i 의 git commit + push 자동 (step8 절차) → chunks-overview 의 chunk_i 상태 `done`
+   │   if chunk_i < N: chunk_i += 1 → step3 의 *다음 chunk plan 작성* → step4 (chunk_i+1) ... 반복
+   │   if chunk_i == N: 아래 step7 진입
+   │
+   └─ 단일 모드 또는 Chunks 의 last chunk PASS:
         ↓
 step7. 커스터머 유저 테스트
    * 전체 워크플로우 중 **단 1회만** 실행 — github/commit 직전 마지막 게이트
@@ -156,16 +149,45 @@ step7. 커스터머 유저 테스트
 step8. git remote(원격 저장소) 있나?
         │
         ├─ YES → step8. commit / push
-        │          ├─ 성공 → complete
+        │          ├─ 성공 → complete 진입 전 사용자 확인 → complete
         │          └─ 실패 → 사용자 결정 요청
         │                    (재시도 / 브랜치 수정 / 로컬 commit 만 완료로 처리)
         │
-        └─ NO  ───────────────────────→ complete
+        └─ NO  ───────────────────────→ complete 진입 전 사용자 확인 → complete
+
+noask 예외 — 단 2곳 (그 외 모두 자동 결정):
+
+(예외 1) complete 진입 전 step7 결과 처리 확인:
+   메인 Claude 가 AskUserQuestion 으로 한 번 묻는다.
+   "step7 결과 어떻게 처리?"
+   ├─ A. 그대로 complete 진행 (개선안 report 에 요약)
+   ├─ B. 일시정지 (.harness/.pending-step7-review 마커, 사용자가 재호출)
+   └─ C. 개선안으로 신규 워크플로우 자동 시작
+        ├─ 현 워크플로우는 complete 완료 처리 (report 작성 + 종료)
+        ├─ customer-<slug>.md 의 권고/있었으면/없었으면 합성 → 신규 한 줄 목표
+        ├─ 신규 progress 에 auto_triggered_from: <원본 slug> 기록
+        └─ 무한 chain 차단: 신규 워크플로우 step7 게이트에선 C 비활성 (A/B 만)
+
+(예외 2) step6 *동일 사유* BLOCKED 5회 누적:
+   매 BLOCKED 회차마다 progress 의 `step6 BLOCKED 누적` 카운터 + 사유 enum 누적.
+   같은 사유 enum 으로 5회째 발생 시에만 AskUserQuestion 호출.
+   ├─ A. 환경 수정 후 재시도 (supervisor / 운영자 환경 점검 후 재호출)
+   ├─ B. 사용자 명시 동의 스킵 (test 약식 완료 처리, 다음 step 진행)
+   └─ C. 워크플로우 중단 (report 에 사유 전문 기록)
+   * 그 전 4회까지는 자동 결정 — 재시도 1회 → 다중 슬러그면 (D) paused-by-blocked + 다음 슬러그, 단일 슬러그면 (C) 자동 중단
+   * 서로 다른 사유로 5회 누적은 트리거 아님
 ```
 
-**"동일 문제 / 동일 결함" 판정 기준:** 동일 파일 경로 + 동일 오류 유형(예: 타입 오류, null 참조, 권한 오류) 조합. 표현이 달라도 유형과 위치가 같으면 동일로 간주. step5 와 step6 의 카운터는 공유하지 않고 각자 독립으로 카운트한다.
+**"동일 문제 / 동일 결함" 판정 기준 (CRITICAL):** 동일 파일 경로 + 동일 오류 유형(13종 enum 중 하나, 예: TYPE_ERROR, NULL_REFERENCE, PERMISSION_DENIED) 조합. 표현이 달라도 유형과 위치가 같으면 동일로 간주. step5 와 step6 의 카운터는 공유하지 않고 각자 독립으로 카운트한다.
 
-**"5회" 임계값 선택 이유:** 비용 보수성을 위한 선택. 1 루프당 Codex 호출 + 컨텍스트 재처리 비용이 누적되므로, 일반 LLM tool-call 산업 상한(약 15회) 대비 보수적인 5회를 채택했다. 같은 문제로 5회 실패 = *동일 접근* 의 한계로 판단하고 사용자 의사 결정에 맡긴다.
+**중단 조건 (CRITICAL — 흔히 오해되는 부분)**:
+- "5회 LGTM:NO" / "5회 FAIL" *자체* 로는 중단되지 **않는다**.
+- 중단 조건은 **"동일 (유형 enum, 파일경로) 튜플의 LGTM:NO / FAIL 이 누적 5회"** 이다.
+- 즉, 매 회차마다 *다른 결함* 을 해결 중이면 (예: 1회 TYPE_ERROR @ a.ts, 2회 NULL_REFERENCE @ b.ts, 3회 LOGIC_ERROR @ c.ts ...) 카운터가 *동일 문제* 로 누적되지 않으므로 무한 반복 가능. 이는 실제로 *각 회차마다 진척 중* 이라는 신호.
+- 같은 (유형, 파일) 조합이 5회째 등장하면 그때만 중단. 즉 *동일 접근의 한계* 신호.
+- "동일 문제 여부 = YES" 판정은 progress 파일 `## Loop Counter` 섹션의 매 회차 라벨로 갱신되며, step5/6 결정 보고의 "이번 루프 회차" 필드에 *동일 문제 유형 enum = YES | NO* 가 명시되어야 한다.
+
+**"5회" 임계값 선택 이유:** 비용 보수성을 위한 선택. 1 루프당 Codex 호출 + 컨텍스트 재처리 비용이 누적되므로, 일반 LLM tool-call 산업 상한(약 15회) 대비 보수적인 5회를 채택했다. *같은 문제로* 5회 실패 = *동일 접근* 의 한계로 판단하고 사용자 의사 결정에 맡긴다.
 
 ---
 
@@ -184,12 +206,18 @@ step5/step6 가 끝난 직후 메인 Claude 는 채팅에 5필드 결정 보고�
 ```markdown
 ## Loop Counter
 - step5 LGTM:NO 누적: <N>회
-  - 직전 회차 결함 유형·파일: <유형> @ <파일경로>
+  - 직전 회차 결함 유형·파일: <유형 enum> @ <파일경로>
   - 동일 문제 여부 판정: 직전 회차와 (유형 + 파일경로) 조합이 동일 = YES, 다르면 NO
 - step6 FAIL 누적: <M>회
-  - 직전 회차 결함 유형·파일: ...
+  - 직전 회차 결함 유형·파일: <유형 enum> @ <파일경로>
   - 동일 결함 여부 판정: ...
+- step6 BLOCKED 누적: <B>회   (2026-05-20 신규)
+  - 직전 회차 BLOCKED 사유: <사유 enum>
+  - 동일 사유 여부 판정: 직전 회차와 사유 enum 일치 = YES, 다르면 NO
+  - 동일 사유 5회 누적 시 → AskUserQuestion (noask 2번째 예외)
 ```
+
+세 카운터 모두 독립. 서로 공유하지 않음.
 
 ### (3) 자체 수정 우회 차단
 
@@ -201,7 +229,7 @@ step5/6 결정 보고의 자기 점검 항목 ("이번 fail 후 메인 Claude �
 git diff <step4_commit_sha>..HEAD -- <step4 변경 파일 목록>
 ```
 
-- `<step4_commit_sha>` 는 step4 진입 시 `git rev-parse HEAD` 결과를 `progress-<slug>.html` 의 진행 상태 카드에 자동 기록한 값.
+- `<step4_commit_sha>` 는 step4 진입 시 `git rev-parse HEAD` 결과를 `progress-<slug>.md` 에 자동 기록한 값.
 - diff 가 비어 있지 않으면 **자체 수정 = YES 자동 라벨**. 메인 Claude 가 적은 자기 점검 값이 NO 면 *불일치* — 즉시 워크플로우 중단 + `report-<slug>.html` 에 "정책 위반: git diff 와 자기 점검 불일치" 기록.
 - diff 가 비어 있으면 자체 수정 = NO 로 확정.
 
@@ -262,13 +290,31 @@ step6 / step7 의 두 도우미가 동일한 기준으로 테스트하도록 메
 
 ---
 
-## 부록: Codex 리뷰 방법
+## 부록: Codex 리뷰 방법 (2026-05-20 단순화)
 
-1. 변경 파일 내용을 prompt 파일로 저장 (예: `.harness/reviews/_input.txt`)
-2. WSL 에서 Codex wrapper 호출:
-   ```bash
-   wsl bash .harness/wrappers/codex-review.sh --prompt-file .harness/reviews/_input.txt
+> **legacy `wrappers/codex-review.sh` (tmux + wt.exe + sentinel polling) 는 폐기되었음.** WSL wrapping 도 제거 — `codex` CLI 가 Windows native (npm-installed) 라 Bash 에서 직접 호출. 자세히: [`/harness-review`](~/.claude/commands/harness-review.md) · [`agents/codex-reviewer.md`](../agents/codex-reviewer.md).
+
+**단순 4단계 흐름**:
+
+1. **리뷰 대상 파일 경로 목록을 file-list MD 로 저장**:
    ```
-3. Codex 응답을 `review-<slug>.md` 에 누적
+   .harness/reviews/review-<slug>-file-list.md
+   ```
+   내용은 *경로만* (각 줄 `- <path>` 형식). focus·instructions·코드 본문 일체 금지.
 
-**Codex fallback(대안 사용) 시 주의:** Codex 가 인증 실패 등으로 불가해 `code-review` skill 로 전환되면 **Claude 가 구현과 리뷰를 모두 수행**한다. 자기편향(self-review bias) 제거 효과가 사라지므로, 메인 Claude 는 이 사실을 사용자에게 알리고 진행 의사를 확인한다.
+2. **`codex exec` 직접 호출** (Bash, wrapper 없음):
+   ```bash
+   codex exec --sandbox workspace-write \
+     ".harness/reviews/review-<slug>-file-list.md 에 적힌 파일들 전부 리뷰해줘. 리뷰 결과는 .harness/reviews/codex-review-<slug>-result.md 에 작성해줘."
+   ```
+   **위 한 줄 프롬프트 외 추가 텍스트 절대 금지.** Codex 가 file-list.md 를 자체 file-read 도구로 읽고 자체 형식으로 result 작성.
+
+3. **결과 파일 Read**:
+   ```
+   .harness/reviews/codex-review-<slug>-result.md
+   ```
+   비어 있거나 *"리뷰 못 함"* 이면 STOP, 호출자/사용자에 보고. fake 응답 생성 금지.
+
+4. **호출자에게 verbatim 반환** + result 절대경로 한 줄 보고.
+
+**Codex fallback(대안 사용) 시 주의:** Codex 가 인증 실패(exit 2) 또는 quota 소진(exit 3)로 불가하면 `code-review` skill 또는 Claude `code-reviewer` agent 로 전환된다. 이 경우 **Claude 가 구현과 리뷰를 모두 수행** → 자기편향(self-review bias) 제거 효과 사라짐. 메인 Claude 는 이 사실을 보고하고 (`fallback_used` 필드 명시 — workflow.md "회송 경로 실행 보장" 7필드 양식 참조), self-review LGTM:YES 는 자동으로 `LGTM:UNKNOWN` 강등됨.

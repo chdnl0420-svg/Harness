@@ -1,16 +1,19 @@
 # Harness Agent Learning Data
 
-이 폴더는 harness 의 6개 도우미(agent)가 작업하며 축적한 학습을 저장한다.
-각 도우미는 자기 이름의 `.md` 파일을 가진다 (예: `harness-planner.md`).
+이 폴더는 harness 의 3개 페르소나 도우미(agent)가 작업하며 축적한 학습을 저장한다.
+각 도우미는 자기 이름의 `.md` 파일을 가진다:
+- `harness-customer-user.md` — step7 일반인 시점 테스트
+- `harness-qa-engineer.md` — step6 사양 일치 QA
+- `harness-deep-researcher.md` — 외부 리서치
 
-## 저장 위치 (Hybrid)
+**2026-05-20 변경**: 일반 skill 로 대체된 6개 도우미 (planner, architect, code-reviewer, security-reviewer, tdd-guide, build-resolver) 의 learning 파일은 폐기. 해당 도구는 이제 `plan`, `code-review`, `security-review`, `tdd`, `build-fix` 같은 일반 skill 로 호출되며 별도 learning prepend 가 없다.
 
-- **공용 (이 폴더)**: `~/.claude/skills/harness/agents/learning/<agent>.md`
-  - 모든 프로젝트가 공유. 언어/프레임워크 무관한 일반 원칙.
-- **프로젝트 (개별)**: `<PROJECT>/.harness/agents/learning/<agent>.md`
-  - 그 프로젝트에서만 해당하는 로컬 컨벤션.
+## 저장 위치 (공용 단일 — 2026-05-20 정합화)
 
-**로드 순서**: 공용 먼저 → 프로젝트로 덮어쓰기 (프로젝트가 이김).
+- **공용 (이 폴더만)**: `~/.claude/skills/harness/agents/learning/<agent>.md`
+  - 모든 프로젝트가 공유. 언어/프레임워크 무관한 일반 원칙 + 실전 회차 패턴 누적.
+
+**프로젝트 learning 폐기 (2026-05-20)**: 이전 `<PROJECT>/.harness/agents/learning/` 경로는 더 이상 사용 안 함. 프로젝트별 컨벤션은 프로젝트의 `CLAUDE.md` / `docs/` 에 명시. Learning Prepend 계약은 *공용만* prepend.
 
 ## 파일 구조 (고정 5섹션)
 

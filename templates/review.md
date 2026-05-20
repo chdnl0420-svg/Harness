@@ -45,7 +45,7 @@ codex_attempt_exit_code: <0 | 2 | other>  # only relevant if fallback occurred
 (only shown if Codex failed and Claude code-reviewer was used)
 
 ⚠️ Codex unavailable: <reason>. Reviewed by Claude code-reviewer as fallback.
-User action recommended: `codex login` in WSL.
+User action recommended: 새 터미널 (cmd / PowerShell / Git Bash 중 하나) 열고 `codex login` 실행.
 
 ---
 

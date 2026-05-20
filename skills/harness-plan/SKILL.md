@@ -1,6 +1,6 @@
 ---
 name: harness-plan
-description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬. AskUserQuestion 으로 사용자 의도를 카테고리별로 직접 묻고, 필요 시 외부 리서치를 `harness-deep-researcher` 에 위임 (`--noagent` 모드면 메인 Claude 직접) 한 뒤, 모은 입력을 바탕으로 plan-readability 규칙을 지키는 도메인 설계 초안을 만든다. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
+description: harness step2 도메인 plan 작성 skill. 호출 컨텍스트에 따라 noask 모드 (`.harness/.noask` 또는 `/harness`) 면 AskUserQuestion 호출 없이 6 카테고리 합리적 기본값 + Open Questions, interactive 모드 (`.harness/.ask` 또는 `/harness-ask`) 면 AskUserQuestion 순차 카테고리. 필요 시 외부 리서치를 `harness-deep-researcher` 에 Task 위임. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
 ---
 
 # harness-plan
@@ -105,7 +105,8 @@ noask 모드 산출물도 interactive 모드와 동일하게 메인 컨텍스트
 - Phase 1 답변에 *"조사 필요"* 가 명시된 항목
 - 사용자가 명시적으로 "조사 / 비교 / 확인" 요청
 
-**기본 경로 (subagent 위임)** — `.harness/.noagent` 가 **없을 때**:
+**기본 경로 (subagent 위임)** — 항상 시도 (2026-05-20 정합화: `.noagent` 마커 폐기):
+
 - `Task` 도구로 `subagent_type="harness-deep-researcher"` 호출.
 - prompt 에 4개 필드 명시:
   ```
@@ -114,17 +115,21 @@ noask 모드 산출물도 interactive 모드와 동일하게 메인 컨텍스트
   Context: <도메인 / 기술 스택 / 결정 영향 범위>
   조사 일자: YYYY-MM-DD
   ```
+- prompt 맨 앞에 Learning Prepend 4단계 헤더 (`## Prior Learning (READ FIRST — DO NOT SKIP)`) — workflow.md "Learning Prepend 계약" 참조.
 - 메인 Claude 는 도우미 응답을 받아 `.harness/research/research-<slug>-<NN>-<topic>.md` 에 **저장** — 응답의 *Summary · Key Findings · Sources Consulted · Search Trail · Stop reason* 그대로 보존 + 1줄 헤더 (주제, 일자, 호출자 메모).
 - 메인 컨텍스트엔 *"리서치 결과: research-<slug>-<NN>-<topic>.md 참고"* 한 줄 + HIGH confidence Key Findings 만 prepend.
 
-**Fallback 경로 (--noagent)** — `.harness/.noagent` 가 **있을 때**:
-- Task 위임 금지. 메인 Claude 가 직접 WebSearch / WebFetch / 라이브러리 docs 조회.
-- 단, harness-deep-researcher 의 환각 차단 4규칙은 동일 적용:
+**Fallback 경로** — Task 도구 호출이 환경적으로 불가한 경우에만:
+
+- 메인 Claude 가 직접 `WebSearch` / `WebFetch` / 라이브러리 docs 조회.
+- 환각 차단 4규칙은 동일 적용:
   1. No citation = no claim
   2. No paraphrasing from training data
   3. No fabricated URLs (WebFetch 실패한 URL 인용 금지)
   4. 검증 없는 추론은 *"Inferred:"* 로 분리
-- 결과 저장 경로·양식은 위와 동일.
+- 결과 저장 경로·양식은 위와 동일. progress 파일에 *"deep-researcher Task 호출 불가 — 메인 직접 수행"* 사유 1줄 기록.
+
+**`.noagent` 마커는 2026-05-20 폐기** — 이전 문서·코드에 잔존해 있어도 본 정합화 정책을 따른다. 마커 파일이 존재해도 무시하고 기본 경로(Task 위임) 우선 시도.
 
 리서치 불필요 판단:
 - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록 (스킵 금지). 결과 파일도 만들지 않는다.

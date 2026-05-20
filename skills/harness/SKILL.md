@@ -1,6 +1,6 @@
 ---
 name: harness
-description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. 본 skill 은 사용자가 명시적으로 `/harness <한 줄 목표>` (또는 `/harness-ask <한 줄 목표>`) 슬래시 커맨드를 *직접 타이핑* 했을 때만 로드. "워크플로우 / 워크플로우 시작 / 도메인 설계 / 구현 계획 / QA 테스트 / Codex 리뷰 / commit / push" 같은 *키워드만으로는 자동 트리거 금지*. SKILL.md 본문의 입력 게이트가 슬래시 커맨드 호출 컨텍스트 부재 시 즉시 거부하고 한 줄 안내 후 종료. 슬래시 호출이 확인된 경우에만 본문 내용 (8단계 자동 워크플로우 step1~complete + noask 기본 정책 + 페르소나 3개 Task subagent + Skill 도구 통합) 진행. ※ 다음 인접 skill 과 무관 (이름만 비슷): autonomous-agent-harness, gan-style-harness, eval-harness, healthcare-eval-harness, agent-harness-construction.'
+description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. 본 skill 은 사용자가 명시적으로 `/harness <자연어>` (또는 `/harness-ask <자연어>`) 슬래시 커맨드를 *직접 타이핑* 했을 때만 로드. "워크플로우 / 워크플로우 시작 / 도메인 설계 / 구현 계획 / QA 테스트 / Codex 리뷰 / commit / push" 같은 *키워드만으로는 자동 트리거 금지*. SKILL.md 본문의 입력 게이트가 슬래시 커맨드 호출 컨텍스트 부재 시 즉시 거부하고 한 줄 안내 후 종료. 슬래시 호출이 확인된 경우에만 본문 내용 (8단계 자동 워크플로우 step1~complete + noask 기본 정책 + 페르소나 3개 Task subagent + Skill 도구 통합) 진행. ※ 다음 인접 skill 과 무관 (이름만 비슷): autonomous-agent-harness, gan-style-harness, eval-harness, healthcare-eval-harness, agent-harness-construction.'
 ---
 
 ## CRITICAL: 입력 게이트 — 슬래시 커맨드 호출 컨텍스트 확인 (자동 트리거 차단)
@@ -10,12 +10,12 @@ description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. 본 skill 은 사용자�
 본 SKILL.md 가 메인 Claude 의 컨텍스트에 로드된 직후, **본문 어떤 절차도 실행하기 전에** 다음을 자체 검증한다:
 
 1. **호출 컨텍스트 확인** — 본 skill 로드 직전 사용자 메시지가 다음 중 *하나* 인지 확인:
-   - `/harness <한 줄 목표>` 슬래시 커맨드 (직접 타이핑)
-   - `/harness-ask <한 줄 목표>` 슬래시 커맨드 (interactive 모드)
+   - `/harness <자연어>` 슬래시 커맨드 (직접 타이핑)
+   - `/harness-ask <자연어>` 슬래시 커맨드 (interactive 모드)
    - 명시적으로 *"/harness 워크플로우 시작해줘"* / *"harness 슬래시 커맨드로"* 와 같이 슬래시 커맨드를 단어로 *직접 가리킴*
 
 2. **위 셋 중 하나도 아니면 = 자동 트리거 시도 = 즉시 거부**:
-   - 채팅에 한 줄 출력: `[harness] 본 skill 은 /harness 또는 /harness-ask 슬래시 커맨드 명시 호출 전용입니다. 작업을 시작하려면 /harness <한 줄 목표> 형태로 직접 호출하세요.`
+   - 채팅에 한 줄 출력: `[harness] 본 skill 은 /harness 또는 /harness-ask 슬래시 커맨드 명시 호출 전용입니다. 작업을 시작하려면 /harness <자연어> 형태로 직접 호출하세요.`
    - 본문의 step1~complete 절차 진행 **금지**.
    - `.harness/` 폴더 생성·수정 금지.
    - `bootstrap-runtime.sh` 호출 금지.

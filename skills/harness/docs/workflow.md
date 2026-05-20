@@ -72,6 +72,33 @@ subagent 호출 없이 메인 Claude 가 페르소나 작업을 직접 수행하
 
 ---
 
+## CRITICAL: noask 정책 문구 가공 금지 (2026-05-20 신규)
+
+메인 Claude 가 BLOCKED·FAIL·UNKNOWN 처리 시 다음 표현으로 "완료" 처럼 윤색하는 것을 **금지**한다. 위반 시 즉시 워크플로우 중단 + `report-<slug>.html` 에 "정책 위반: 가공어 사용" 기록.
+
+**금지어 (정확 일치 + 의미 일치 모두 차단)**:
+- `완료 처리` / `약식 완료` / `정상 종료 처리`
+- `스킵 처리` / `이번엔 스킵` / `간단하니 생략`
+- `통과 가정` / `통과로 간주` / `사실상 통과`
+- `자체 판단으로 진행` / `메인이 직접 확인했으므로 OK`
+
+BLOCKED 의 자동 처리 결과는 다음 4개 중 **하나뿐** (SKILL.md "자동 결정 매핑" 표 참조):
+
+1. **자동 재시도 1회 → 성공 (PASS)** — qa-`<slug>`.md 에 재시도 증거 4필드 (`retry_attempted` / `retry_enum_diagnosed` / `retry_action` / `retry_result`) 첨부.
+2. **재시도 fail + 다중 슬러그 → (D) `paused-by-blocked`** — progress 마킹 + 다음 슬러그 자동 시작.
+3. **재시도 fail + 단일 슬러그 → (C) 워크플로우 중단** — progress 마킹 + report 사유 기록 후 종료. **commit/push/complete 진입 절대 금지.**
+4. **동일 사유 5회 누적 → AskUserQuestion** (noask 정책의 2번째 예외, complete 진입 게이트와 함께).
+
+"완료 처리" / "약식 완료" 라는 옵션은 워크플로우 어디에도 정의되어 있지 않다. (C) 중단을 "완료" 로 라벨링하는 모든 시도는 정책 위반.
+
+자체 검증: 매 BLOCKED 회차 보고 직후 `progress-<slug>.md` 를 grep 으로 자동 검사:
+```
+grep -nE "완료 처리|약식 완료|스킵 처리|통과 가정|간단하니 생략|자체 판단으로 진행" .harness/progress/progress-<slug>.md
+```
+1건이라도 매치되면 즉시 워크플로우 중단 + report 에 매치 줄 인용.
+
+---
+
 ## CRITICAL: Step 스킵·무시 금지
 
 **Step 자체에 정의된 규칙(워크플로우 다이어그램에 명시된 조건 분기)에 의한 것이 아니면, 어떤 step 도 스킵·통합·무시할 수 없다.**

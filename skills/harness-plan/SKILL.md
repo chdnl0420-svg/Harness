@@ -29,9 +29,27 @@ description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬.
 
 ## 절차 (CRITICAL — 순서 엄수)
 
-### Phase 1. 사용자 인터랙티브 질의 (필수 게이트)
+### Phase 1. 도메인 입력 수집 (필수 게이트)
+
 CRITICAL: 사용자가 요청한 내용을 실제 완료 할 수 있는 계획을 세워야함. 중간 단계까지만 계획 세우기 절대 금지.
-CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 진행 금지. 한 번에 묻는 질문 1~4개, 선택지 2~4개씩. 사용자가 자유 답변하고 싶으면 "Other" 옵션으로 입력.
+
+**모드 분기 (CRITICAL — 호출 컨텍스트 확인)**:
+
+호출자의 컨텍스트에 따라 두 모드 중 하나로 진행. 자체 검증으로 모드를 식별한다.
+
+1. **`.harness/.noask` 마커가 존재** OR 호출자가 `/harness` (noask 기본 정책) 인 경우 → **noask 모드**:
+   - **`AskUserQuestion` 호출 금지** (harness/SKILL.md noask 정책 준수).
+   - 6개 카테고리 각각에 *합리적 기본값* 을 메인 Claude 가 직접 적성. 사용자 원본 한 줄 목표 + 프로젝트 컨텍스트 (`docs/PRD.md`, `docs/ARCHITECTURE.md`, 최근 코드 변경) 만 보고 *최선의 가정* 작성.
+   - 가정에 확신 부족한 항목은 **Open Questions** 섹션으로 누적 → step3 의 plan 검토 단계에서 사용자가 직접 검토 가능하게 노출.
+   - 모드 진입 시 채팅 한 줄 보고: `[harness-plan noask 모드] AskUserQuestion 호출 없이 6 카테고리 합리적 가정 + Open Questions 누적으로 진행합니다.`
+
+2. **`.harness/.ask` 마커가 존재** OR 호출자가 `/harness-ask` 또는 사용자 직접 호출인 경우 → **interactive 모드**:
+   - **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 진행 금지.
+   - 한 번에 묻는 질문 1~4개, 선택지 2~4개씩. 사용자가 자유 답변하고 싶으면 "Other" 옵션으로 입력.
+
+3. **두 마커 모두 부재** + 호출 컨텍스트 불명 → 사용자 안전을 위해 **interactive 모드 기본값** (사용자가 컨텍스트 모르면 묻는 게 안전).
+
+### Phase 1 — interactive 모드 절차 (위 분기에서 모드 2/3 선택 시)
 
 다음 6개 카테고리를 사용자가 답할 때까지 **순차** 진행한다. 한 번에 다 묻지 말고 카테고리별로 끊어 묻는다 (질문 화면 가독성).
 
@@ -51,6 +69,31 @@ CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 
 답변 정리:
 - 메인 컨텍스트에 카테고리별로 누적.
 - 답변이 5문항을 넘거나 길어지면 `.harness/research/answers-<slug>.md` 에 저장하고, 메인엔 한두 줄 요약만 남긴다 (컨텍스트 절약).
+
+### Phase 1 — noask 모드 절차 (위 분기에서 모드 1 선택 시)
+
+`AskUserQuestion` 사용 없이 메인 Claude 가 6 카테고리를 직접 작성. 입력 자료:
+
+- 사용자 원본 한 줄 목표 (필수)
+- 프로젝트 컨텍스트 — `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI_GUIDE.md`, `CLAUDE.md` (존재 시 Read)
+- 최근 git history (5 커밋) — 최근 작업 흐름 파악
+- 변경 대상 영역의 코드 (한 줄 목표 키워드로 grep)
+
+각 카테고리 작성 규칙:
+
+1. **핵심 사용자 시나리오** — 한 줄 목표 + PRD 의 페르소나/사용자 흐름에서 *가장 직접적인 1개* 시나리오 추출. 불명 시 Open Questions 로.
+2. **성공 기준** — "이게 동작하면 된 것" 의 *관찰 가능한* 결과 1~3개. 테스트로 검증 가능한 표현으로.
+3. **범위 / 제외 항목** — 한 줄 목표 안에 명시된 것만 범위. 그 외 인접 영역은 *모두 제외* 로 기본 가정 (스코프 보수성).
+4. **제약** — 프로젝트 docs + 코드의 *현재 스택·플랫폼* 만 기록. 새로운 의존성 추가는 Open Questions 로.
+5. **외부 의존성** — *현재 코드에서 사용 중인* 라이브러리만 활용 가정. 신규 라이브러리 필요 시 Open Questions.
+6. **비기능 요구** — PRD / UI_GUIDE 에 명시된 것만 인용. 명시 안 된 비기능은 *프로젝트 기본 수준* 으로 가정.
+
+Open Questions 누적:
+- 가정에 자신 없는 항목은 `## Open Questions` 섹션에 *질문 + 임시 가정* 을 짝으로 기록.
+- 예: `Q: '재시작 후 모드 유지' 가 필수인가? (가정: YES — localStorage 사용)`.
+- 이 섹션은 step3 plan 직전에 메인 Claude 가 사용자에게 한 번에 노출 (`/harness-ask` 전환 또는 inline 보고).
+
+noask 모드 산출물도 interactive 모드와 동일하게 메인 컨텍스트 + (필요 시) `.harness/research/answers-<slug>.md` 누적.
 
 ### Phase 2. (필요 시) 외부 리서치 — `harness-deep-researcher` 위임
 

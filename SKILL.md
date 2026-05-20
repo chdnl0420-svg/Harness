@@ -23,20 +23,20 @@
 구현단계에서 새 폴더를 만들어야 할 때는 다음 규칙을 따릅니다:
 - root폴더에 파일을 직접 만들지 말고 폴더를 만들어서 그 안에 파일을 넣는다.
 
-## 학습파일 자동 Fallback (CRITICAL — 모든 harness skill / `/harness-*` 커맨드 공통)
+## 학습파일 자동 Fallback (CRITICAL — 페르소나 3개 호출 공통)
 
-`/harness` 스킬 또는 `/harness-*` 커맨드 호출 시, 각 agent 의 **학습파일을 반드시 컨텍스트에 prepend** 한다. 로드 순서는 항상 다음과 같다:
+페르소나 도우미 호출 시 **공용 학습파일을 반드시 컨텍스트에 prepend** 한다 (2026-05-20 정합화 — 프로젝트 learning 폐기, 공용만 사용).
 
-1. **공용 (마스터, 항상 존재)**: `~/.claude/skills/harness/agents/learning/<agent-name>.md`
-2. **프로젝트 (있으면)**: `<PROJECT_ROOT>/.harness/agents/learning/<agent-name>.md`
+**경로**: `~/.claude/skills/harness/agents/learning/<agent-name>.md` (공용)
 
 **규칙**:
-- 공용은 **항상** Read 한다. 즉 프로젝트에 학습파일이 없어도 **마스터(공용) 학습은 무조건 적용**된다.
-- 프로젝트 파일이 있으면 추가로 Read 해서 공용 위에 덮어쓴다 (프로젝트가 이김).
-- 프로젝트 파일이 없으면 본문에 `(없음)` 으로 명시. 마스터만으로 충분히 작동한다.
-- 공용 학습파일이 누락된 경우 (마스터 자체에 없음) → `harness-setup` 으로 마스터 재동기화 권고 후 그 agent 자리에 `(빈 파일)` 명시하고 진행.
+- 공용 학습파일을 **항상** Read 해 prompt 에 prepend.
+- 파일이 비어 있으면 본문에 `(빈 파일)` 으로 명시. 공용은 마스터 install 시 항상 존재.
+- 누락된 경우 (마스터 자체에 없음) → `harness-setup` 으로 마스터 재install 권고 후 `(빈 파일)` 명시하고 진행.
 
-**적용 범위**: 모든 `harness-*` skill (planner / architect / tdd-guide / code-reviewer / security-reviewer / build-resolver / deep-researcher / qa-engineer / customer-user / review) 및 `/harness-*` 커맨드. 메인 Claude 가 skill 호출 직전 두 파일을 Read 해 본인 컨텍스트에 prepend 한다.
+**적용 범위**: 페르소나 3개 — `harness-customer-user`, `harness-qa-engineer`, `harness-deep-researcher`. 메인 Claude 가 skill/agent 호출 직전 공용 파일을 Read 해 본인 컨텍스트에 prepend.
+
+**일반 skill/agent 는 본 계약 대상 아님** — `plan`, `code-review`, `security-review`, `tdd`, `build-fix`, `architect`, `code-reviewer` 등 일반 도구는 harness 전용이 아니므로 별도 learning prepend 없음.
 
 상세 계약: [docs/workflow.md](docs/workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통)
 

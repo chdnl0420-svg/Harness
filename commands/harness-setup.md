@@ -25,8 +25,10 @@ argument-hint: '[--update] [--no-version-check]'
 | 2 | Codex CLI (`@openai/codex`) | ✅ `npm i -g @openai/codex` 자동 실행 |
 | 3 | Codex 로그인 (`~/.codex/auth.json`) | 가이드 (터미널에서 `codex login`) |
 | 4 | 페르소나 agent 3개 (`~/.claude/agents/harness-{qa-engineer,customer-user,deep-researcher}.md`) | 가이드 (`/harness` 첫 실행 시 `bootstrap-runtime.sh` 가 자동 등록) |
-| 5 | Master skill 폴더 (`~/.claude/skills/harness/skills/harness/`) — SKILL.md + agents/learning/ 존재 | 누락 시 재설치 안내 |
-| 6 | GitHub 버전 비교 (`.version` ↔ origin/main SHA) | outdated 면 자동 업데이트 |
+| 5 | Master skill (`~/.claude/skills/harness/SKILL.md`) | 누락 시 `/harness-setup --update` 권장 |
+| 6 | 페르소나 wrapper skill 4개 (`harness-plan-ask`, `harness-review`, `harness-deep-researcher`, `harness-customer-user`) + `harness-plan` | step1 게이트 통과 위해 필요. 누락 시 `/harness-setup --update` |
+| 7 | `/harness`, `/harness-ask` 진입점 (`~/.claude/commands/harness.md`, `harness-ask.md`) | 누락 시 `/harness-setup --update` |
+| 8 | GitHub 버전 비교 (`.version` ↔ origin/main SHA) | outdated 면 자동 업데이트 |
 
 ## 실행 (Claude Code Bash 도구로 직접 수행)
 
@@ -47,11 +49,21 @@ for a in harness-qa-engineer harness-customer-user harness-deep-researcher; do
   test -f "$HOME/.claude/agents/$a.md" || echo "missing: $a"
 done
 
-# 5. Master skill folder
-test -f "$HOME/.claude/skills/harness/skills/harness/SKILL.md" || echo "reinstall needed"
+# 5. Master skill
+test -f "$HOME/.claude/skills/harness/SKILL.md" || echo "missing: harness master — run /harness-setup --update"
 
-# 6. Version check (skip if --no-version-check)
-LOCAL_SHA=$(awk -F': ' '/^commit:/{print $2}' "$HOME/.claude/skills/harness/skills/harness/.version" 2>/dev/null)
+# 6. Persona wrapper skills + harness-plan
+for s in harness-plan harness-plan-ask harness-review harness-deep-researcher harness-customer-user; do
+  test -f "$HOME/.claude/skills/$s/SKILL.md" || echo "missing: $s — run /harness-setup --update"
+done
+
+# 7. Entry commands
+for c in harness.md harness-ask.md; do
+  test -f "$HOME/.claude/commands/$c" || echo "missing: commands/$c — run /harness-setup --update"
+done
+
+# 8. Version check (skip if --no-version-check)
+LOCAL_SHA=$(awk -F': ' '/^commit:/{print $2}' "$HOME/.claude/skills/harness/.version" 2>/dev/null)
 REMOTE_SHA=$(curl -s https://api.github.com/repos/chdnl0420-svg/Harness/commits/main \
   | grep -m1 '"sha":' | cut -d'"' -f4)
 [ "$LOCAL_SHA" = "$REMOTE_SHA" ] && echo "✅ 최신" || echo "⬆ outdated: $LOCAL_SHA → $REMOTE_SHA"
@@ -73,24 +85,37 @@ REMOTE_SHA=$(curl -s https://api.github.com/repos/chdnl0420-svg/Harness/commits/
 ## `--update` 동작
 
 ```bash
-# 1. 기존 마스터 백업
-mv ~/.claude/skills/harness ~/.claude/skills/harness.bak-$(date +%Y%m%d-%H%M%S)
+# 1. 기존 harness 계열 전부 백업 (마스터 + 페르소나 wrapper 4개 + harness-plan)
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+for d in harness harness-plan harness-plan-ask harness-review harness-deep-researcher harness-customer-user; do
+  if [ -d "$HOME/.claude/skills/$d" ]; then
+    mv "$HOME/.claude/skills/$d" "$HOME/.claude/skills/${d}.bak-${TIMESTAMP}"
+  fi
+done
 
 # 2. GitHub 최신 tarball 받기
 curl -sL https://github.com/chdnl0420-svg/Harness/archive/refs/heads/main.tar.gz \
   | tar xz -C /tmp
 
-# 3. skills/harness/ 만 추출해 ~/.claude/skills/harness/ 로 복사
-cp -r /tmp/Harness-main/skills/harness ~/.claude/skills/
-cp -r /tmp/Harness-main/commands/harness-*.md ~/.claude/commands/
+# 3. skills/harness* 전부 추출 (마스터 본체 + harness-plan + 페르소나 wrapper 4개)
+#    glob harness* 는 harness, harness-plan, harness-plan-ask, harness-review,
+#    harness-deep-researcher, harness-customer-user 모두 매칭.
+cp -r /tmp/Harness-main/skills/harness* ~/.claude/skills/
 
-# 4. .version 갱신
+# 4. commands/harness* (진입점 harness.md + 모든 harness-*.md)
+#    glob harness*.md 는 대시 없는 harness.md 와 harness-ask.md, harness-setup.md 등
+#    harness- 접두 파일 모두 매칭.
+cp -r /tmp/Harness-main/commands/harness*.md ~/.claude/commands/
+
+# 5. .version 갱신 (정확한 경로 — 중첩 경로 아님)
 SHA=$(curl -s https://api.github.com/repos/chdnl0420-svg/Harness/commits/main \
   | grep -m1 '"sha":' | cut -d'"' -f4)
 printf 'commit: %s\ninstalled: %s\nsource: https://github.com/chdnl0420-svg/Harness\nbranch: main\n' \
   "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  > ~/.claude/skills/harness/skills/harness/.version
+  > ~/.claude/skills/harness/.version
 ```
+
+**복원 (rollback)**: 백업이 `~/.claude/skills/<name>.bak-<timestamp>` 형식으로 남음. 문제 시 `mv ~/.claude/skills/harness.bak-<timestamp> ~/.claude/skills/harness` 식으로 되돌림.
 
 ## 트러블슈팅
 

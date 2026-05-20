@@ -1,11 +1,11 @@
 ---
-description: /harness 자동 워크플로우 — 한 줄 목표를 받아 step1~complete 8단계 + complete 까지 자동 진행. noask 기본 정책. 사용자 결정 자동 진행 (2 예외만 AskUserQuestion). 페르소나 3개 도우미는 Task subagent, 그 외는 Skill 도구 통합.
-argument-hint: '[--push] <한 줄 목표>'
+description: /harness 자동 워크플로우 — 자연어 목표(여러 줄 가능)를 받아 step1~complete 8단계 + complete 까지 자동 진행. noask 기본 정책. 사용자 결정 자동 진행 (2 예외만 AskUserQuestion). 페르소나 3개 도우미는 Task subagent, 그 외는 Skill 도구 통합.
+argument-hint: '[--push] <자연어>'
 ---
 
 # /harness — 자동 워크플로우 진입점
 
-`/harness <한 줄 목표>` 형태로 호출. 메인 Claude 가 `harness` skill 본문 ([`~/.claude/skills/harness/SKILL.md`](~/.claude/skills/harness/SKILL.md)) 의 절차를 그대로 따라 step1~complete 까지 자동 실행한다.
+`/harness <자연어>` 형태로 호출. 메인 Claude 가 `harness` skill 본문 ([`~/.claude/skills/harness/SKILL.md`](~/.claude/skills/harness/SKILL.md)) 의 절차를 그대로 따라 step1~complete 까지 자동 실행한다.
 
 ## 호출 시 노출되는 1회 통보 (질문 아님)
 

@@ -1,11 +1,11 @@
 ---
 description: /harness 의 인터랙티브(ask) 모드. AskUserQuestion 허용. step2 도메인 설계 + 자동 결정 매핑 표의 결정 지점들을 사용자에게 질문해 진행. 결정에 사용자 검토가 필요한 작업에 사용. 일반은 /harness (noask) 사용.
-argument-hint: '[--push] <한 줄 목표>'
+argument-hint: '[--push] <자연어>'
 ---
 
 # /harness-ask — 인터랙티브 워크플로우 진입점
 
-`/harness-ask <한 줄 목표>` 형태로 호출. `/harness` 와 동일한 step1~complete 흐름이지만 *결정 지점마다 `AskUserQuestion`* 으로 사용자에게 묻는 모드.
+`/harness-ask <자연어>` 형태로 호출. `/harness` 와 동일한 step1~complete 흐름이지만 *결정 지점마다 `AskUserQuestion`* 으로 사용자에게 묻는 모드.
 
 `/harness` 본체 skill ([`~/.claude/skills/harness/SKILL.md`](~/.claude/skills/harness/SKILL.md)) 의 절차를 따르되, "자동 결정 매핑" 표의 결정 지점들이 *자동 진행* 대신 *사용자 질문* 으로 변환된다.
 

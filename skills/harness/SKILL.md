@@ -31,6 +31,28 @@ description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. 본 skill 은 사용자�
 
 ---
 
+## CRITICAL: [docs/donot.md](docs/donot.md) — 반드시 지켜야 하는 행동 규약
+
+> **본 SKILL.md 의 어떤 절차·결정 매핑·기본값보다 [`docs/donot.md`](docs/donot.md) 가 우선한다.** 입력 게이트 통과 직후, step1 진입 *전에* 반드시 Read 로 전문을 로드해 컨텍스트에 올린다.
+
+**의무**:
+
+1. SKILL.md 가 로드되면 입력 게이트 통과 직후 즉시 [`docs/donot.md`](docs/donot.md) 를 Read 로 읽는다. "기억"이나 "요약"으로 대체 금지 — 매 호출마다 본문 전체를 다시 Read.
+2. 모든 step (step1~complete), 모든 chunk 전환, 모든 서브에이전트·skill 호출 *직전* 에 donot.md 의 9개 섹션을 자가 점검:
+   - §1 사용자 의도·범위 / §2 Step 스킵·통합·생략 / §3 Step 간 입력 누락 / §4 추측 구현 / §5 가짜 완료 / §6 Worktree·격리 함정 / §7 권한 정책 위반 / §8 리뷰·테스트 형식화 / **§9 작업 규모 임의 축소·선제 중단**
+3. **§9 (작업 규모 임의 축소·선제 중단)** 는 본 SKILL.md 의 noask 자동 결정 매핑·산출물 형식 규칙보다 우선한다. §9 의 5가지 금지 패턴 (한 세션 한계 투영해 임의 일시정지 / Codex → self-review 대체 / QA 면제 / chunk 묶음 commit / 선의의 가부장주의) + 3가지 인지 편향 (컨텍스트 보호 본능 / 효율 강박 / 선의의 가부장주의) 중 하나라도 발동되면 즉시 정석 절차로 복귀.
+4. donot.md 위반 발견 시 즉시 워크플로우 중단 + `report-<slug>.html` 에 위반 섹션 + 패턴 명시. 위반 결과로 만든 산출물은 사용자 명시 결정 전까지 추가 행동 금지.
+
+**우선순위 (충돌 시)**:
+
+```
+docs/donot.md  >  CLAUDE.md §6.3.1 (HTML 출력 규칙)  >  SKILL.md noask 자동 결정 매핑  >  docs/workflow.md  >  docs/steps/*.md
+```
+
+donot.md 와 다른 문서가 충돌하면 *항상* donot.md 를 따른다. 다른 문서가 donot.md 와 다른 행동을 지시하더라도 그 지시를 무시한다.
+
+---
+
 ## 산출물 형식 규칙 (CRITICAL — 최우선 적용, 다른 모든 기본값 위)
 
 > `/harness` · `/harness-*` 모든 커맨드 · 모든 `harness-*` skill 이 만드는 모든 산출물 파일에 적용된다. 예외 없음.
@@ -174,7 +196,7 @@ step1 초기화에서 `.harness/.noask` 빈 파일 생성 (그리고 `.harness/.
 
 | 파일 | 무엇을 다루나 |
 |------|--------------|
-| [donot.md](docs/donot.md) | `/harness` 전체 흐름에서 절대 하지 말아야 할 것들 |
+| **[donot.md](docs/donot.md)** | **CRITICAL — 반드시 지켜야 하는 행동 규약. 본 SKILL.md 의 모든 절차·결정 매핑보다 우선. 매 호출마다 Read 로 전문 로드 필수.** |
 | [workflow.md](docs/workflow.md) | `/harness` 전체 흐름 — 어떤 순서로 무엇이 일어나는지 사람-친화 설명 |
 | [steps/](docs/steps/) | step1 ~ step8 + complete 각 단계의 상세 절차 (한 step 당 한 파일) |
 | [procedures/](docs/procedures/) | 단위 절차 정본 (codex-review / customer-test / deep-research) |

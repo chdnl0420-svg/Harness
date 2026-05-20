@@ -2,7 +2,22 @@
 
 **산출물**: `.harness/results/customer-<slug>.md`
 
-**조건**: 워크플로우 전체에서 **단 1회만** 실행. step6 가 몇 번 FAIL → PASS 를 반복하든 이 단계는 한 번뿐.
+**입력 게이트 (skip 금지 — 메인 Claude 가 진입 직전 자체 검증)**:
+
+step5/step6 의 입력 게이트와 동등 강도. 누락 시 step 스킵 위반으로 즉시 워크플로우 중단.
+
+1. `.harness/results/qa-<slug>.md` 마지막 회차 라벨을 Read.
+2. 라벨이 PASS 가 아니면 (`FAIL` / `BLOCKED` / `UNKNOWN` / 라벨 자체 부재) → **진입 거부**.
+   - 채팅 한 줄 보고: `[step7-gate] step6 미통과 (<라벨 원문>) — step7 진입 금지`
+   - 워크플로우는 중단 상태 유지. step8 도 진입 금지.
+3. 라벨이 PASS 인 경우만 step7 호출 진행. 검증에 사용한 라벨 원문을 `customer-<slug>.md` 의 *진입 게이트* 섹션에 인용.
+4. 검증 명령 (메인 Claude 가 직접 실행):
+   ```
+   grep -oE "(Verdict|Status|최종 판정):[[:space:]]*(PASS|FAIL|BLOCKED|UNKNOWN)" .harness/results/qa-<slug>.md | tail -1
+   ```
+5. 본 게이트는 workflow.md "Step 스킵·무시 금지" 절의 강제 메커니즘이다. SKILL.md "자동 결정 매핑" 표의 어떤 자동 결정으로도 우회 불가.
+
+**조건**: 위 게이트 통과 후, 워크플로우 전체에서 **단 1회만** 실행. step6 가 몇 번 FAIL → PASS 를 반복하든 이 단계는 한 번뿐.
 
 **흐름**:
 1. **테스트 가이드 확인** — step6 에서 작성·갱신된 `test-guide-<slug>.md` 최신본을 그대로 재사용 (이 단계에서 별도 작성 안 함). 가이드 없으면 step6 에서 누락된 것이므로 거기로 되돌려 작성 후 진행. 양식은 [../test-guide-format.md](../test-guide-format.md) 참조.

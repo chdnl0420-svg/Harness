@@ -1,6 +1,6 @@
 ---
 name: harness-plan
-description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬. AskUserQuestion 으로 사용자 의도를 카테고리별로 직접 묻고, 필요 시 외부 리서치를 `harness-deep-researcher` 에 위임 (`--noagent` 모드면 메인 Claude 직접) 한 뒤, 모은 입력을 바탕으로 plan-readability 규칙을 지키는 도메인 설계 초안을 만든다. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
+description: harness step2 도메인 plan 작성 skill. 호출 컨텍스트에 따라 noask 모드 (`.harness/.noask` 또는 `/harness`) 면 AskUserQuestion 호출 없이 6 카테고리 합리적 기본값 + Open Questions, interactive 모드 (`.harness/.ask` 또는 `/harness-ask`) 면 AskUserQuestion 순차 카테고리. 필요 시 외부 리서치를 `harness-deep-researcher` 에 Task 위임. /harness step2-domain 안에서만 호출. 일반 계획이 필요하면 /plan 사용.
 ---
 
 # harness-plan
@@ -29,9 +29,27 @@ description: harness step2(도메인) 전용 인터랙티브 plan 작성 스킬.
 
 ## 절차 (CRITICAL — 순서 엄수)
 
-### Phase 1. 사용자 인터랙티브 질의 (필수 게이트)
+### Phase 1. 도메인 입력 수집 (필수 게이트)
+
 CRITICAL: 사용자가 요청한 내용을 실제 완료 할 수 있는 계획을 세워야함. 중간 단계까지만 계획 세우기 절대 금지.
-CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 진행 금지. 한 번에 묻는 질문 1~4개, 선택지 2~4개씩. 사용자가 자유 답변하고 싶으면 "Other" 옵션으로 입력.
+
+**모드 분기 (CRITICAL — 호출 컨텍스트 확인)**:
+
+호출자의 컨텍스트에 따라 두 모드 중 하나로 진행. 자체 검증으로 모드를 식별한다.
+
+1. **`.harness/.noask` 마커가 존재** OR 호출자가 `/harness` (noask 기본 정책) 인 경우 → **noask 모드**:
+   - **`AskUserQuestion` 호출 금지** (harness/SKILL.md noask 정책 준수).
+   - 6개 카테고리 각각에 *합리적 기본값* 을 메인 Claude 가 직접 적성. 사용자 원본 한 줄 목표 + 프로젝트 컨텍스트 (`docs/PRD.md`, `docs/ARCHITECTURE.md`, 최근 코드 변경) 만 보고 *최선의 가정* 작성.
+   - 가정에 확신 부족한 항목은 **Open Questions** 섹션으로 누적 → step3 의 plan 검토 단계에서 사용자가 직접 검토 가능하게 노출.
+   - 모드 진입 시 채팅 한 줄 보고: `[harness-plan noask 모드] AskUserQuestion 호출 없이 6 카테고리 합리적 가정 + Open Questions 누적으로 진행합니다.`
+
+2. **`.harness/.ask` 마커가 존재** OR 호출자가 `/harness-ask` 또는 사용자 직접 호출인 경우 → **interactive 모드**:
+   - **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 진행 금지.
+   - 한 번에 묻는 질문 1~4개, 선택지 2~4개씩. 사용자가 자유 답변하고 싶으면 "Other" 옵션으로 입력.
+
+3. **두 마커 모두 부재** + 호출 컨텍스트 불명 → 사용자 안전을 위해 **interactive 모드 기본값** (사용자가 컨텍스트 모르면 묻는 게 안전).
+
+### Phase 1 — interactive 모드 절차 (위 분기에서 모드 2/3 선택 시)
 
 다음 6개 카테고리를 사용자가 답할 때까지 **순차** 진행한다. 한 번에 다 묻지 말고 카테고리별로 끊어 묻는다 (질문 화면 가독성).
 
@@ -52,6 +70,31 @@ CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 
 - 메인 컨텍스트에 카테고리별로 누적.
 - 답변이 5문항을 넘거나 길어지면 `.harness/research/answers-<slug>.md` 에 저장하고, 메인엔 한두 줄 요약만 남긴다 (컨텍스트 절약).
 
+### Phase 1 — noask 모드 절차 (위 분기에서 모드 1 선택 시)
+
+`AskUserQuestion` 사용 없이 메인 Claude 가 6 카테고리를 직접 작성. 입력 자료:
+
+- 사용자 원본 한 줄 목표 (필수)
+- 프로젝트 컨텍스트 — `docs/PRD.md`, `docs/ARCHITECTURE.md`, `docs/ADR.md`, `docs/UI_GUIDE.md`, `CLAUDE.md` (존재 시 Read)
+- 최근 git history (5 커밋) — 최근 작업 흐름 파악
+- 변경 대상 영역의 코드 (한 줄 목표 키워드로 grep)
+
+각 카테고리 작성 규칙:
+
+1. **핵심 사용자 시나리오** — 한 줄 목표 + PRD 의 페르소나/사용자 흐름에서 *가장 직접적인 1개* 시나리오 추출. 불명 시 Open Questions 로.
+2. **성공 기준** — "이게 동작하면 된 것" 의 *관찰 가능한* 결과 1~3개. 테스트로 검증 가능한 표현으로.
+3. **범위 / 제외 항목** — 한 줄 목표 안에 명시된 것만 범위. 그 외 인접 영역은 *모두 제외* 로 기본 가정 (스코프 보수성).
+4. **제약** — 프로젝트 docs + 코드의 *현재 스택·플랫폼* 만 기록. 새로운 의존성 추가는 Open Questions 로.
+5. **외부 의존성** — *현재 코드에서 사용 중인* 라이브러리만 활용 가정. 신규 라이브러리 필요 시 Open Questions.
+6. **비기능 요구** — PRD / UI_GUIDE 에 명시된 것만 인용. 명시 안 된 비기능은 *프로젝트 기본 수준* 으로 가정.
+
+Open Questions 누적:
+- 가정에 자신 없는 항목은 `## Open Questions` 섹션에 *질문 + 임시 가정* 을 짝으로 기록.
+- 예: `Q: '재시작 후 모드 유지' 가 필수인가? (가정: YES — localStorage 사용)`.
+- 이 섹션은 step3 plan 직전에 메인 Claude 가 사용자에게 한 번에 노출 (`/harness-ask` 전환 또는 inline 보고).
+
+noask 모드 산출물도 interactive 모드와 동일하게 메인 컨텍스트 + (필요 시) `.harness/research/answers-<slug>.md` 누적.
+
 ### Phase 2. (필요 시) 외부 리서치 — `harness-deep-researcher` 위임
 
 외부 정보가 필요하면 **`harness-deep-researcher`** 에 Task 위임. 필요 판정 기준 (다음 중 하나라도 해당하면 리서치 실시):
@@ -62,7 +105,8 @@ CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 
 - Phase 1 답변에 *"조사 필요"* 가 명시된 항목
 - 사용자가 명시적으로 "조사 / 비교 / 확인" 요청
 
-**기본 경로 (subagent 위임)** — `.harness/.noagent` 가 **없을 때**:
+**기본 경로 (subagent 위임)** — 항상 시도 (2026-05-20 정합화: `.noagent` 마커 폐기):
+
 - `Task` 도구로 `subagent_type="harness-deep-researcher"` 호출.
 - prompt 에 4개 필드 명시:
   ```
@@ -71,17 +115,21 @@ CRITICAL: 도구: **`AskUserQuestion` 만 사용.** 추측 / 기본값 / 침묵 
   Context: <도메인 / 기술 스택 / 결정 영향 범위>
   조사 일자: YYYY-MM-DD
   ```
+- prompt 맨 앞에 Learning Prepend 4단계 헤더 (`## Prior Learning (READ FIRST — DO NOT SKIP)`) — workflow.md "Learning Prepend 계약" 참조.
 - 메인 Claude 는 도우미 응답을 받아 `.harness/research/research-<slug>-<NN>-<topic>.md` 에 **저장** — 응답의 *Summary · Key Findings · Sources Consulted · Search Trail · Stop reason* 그대로 보존 + 1줄 헤더 (주제, 일자, 호출자 메모).
 - 메인 컨텍스트엔 *"리서치 결과: research-<slug>-<NN>-<topic>.md 참고"* 한 줄 + HIGH confidence Key Findings 만 prepend.
 
-**Fallback 경로 (--noagent)** — `.harness/.noagent` 가 **있을 때**:
-- Task 위임 금지. 메인 Claude 가 직접 WebSearch / WebFetch / 라이브러리 docs 조회.
-- 단, harness-deep-researcher 의 환각 차단 4규칙은 동일 적용:
+**Fallback 경로** — Task 도구 호출이 환경적으로 불가한 경우에만:
+
+- 메인 Claude 가 직접 `WebSearch` / `WebFetch` / 라이브러리 docs 조회.
+- 환각 차단 4규칙은 동일 적용:
   1. No citation = no claim
   2. No paraphrasing from training data
   3. No fabricated URLs (WebFetch 실패한 URL 인용 금지)
   4. 검증 없는 추론은 *"Inferred:"* 로 분리
-- 결과 저장 경로·양식은 위와 동일.
+- 결과 저장 경로·양식은 위와 동일. progress 파일에 *"deep-researcher Task 호출 불가 — 메인 직접 수행"* 사유 1줄 기록.
+
+**`.noagent` 마커는 2026-05-20 폐기** — 이전 문서·코드에 잔존해 있어도 본 정합화 정책을 따른다. 마커 파일이 존재해도 무시하고 기본 경로(Task 위임) 우선 시도.
 
 리서치 불필요 판단:
 - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록 (스킵 금지). 결과 파일도 만들지 않는다.

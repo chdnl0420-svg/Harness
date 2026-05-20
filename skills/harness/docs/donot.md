@@ -23,7 +23,7 @@
 - step4 시작 시 `implementation-<slug>.md` 전문을 **반드시 다시 읽는다.**
 - step6/step7 도우미 호출 시 `test-guide-<slug>.md` 전문을 prompt 에 prepend 하지 않으면 호출 자체를 하지 않는다.
 - **모든 `harness-*` subagent 호출 시 [Learning Prepend 계약](workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 4단계 (파일 경로 식별 → Read → `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend → 본 작업 prepend) 를 모두 수행하지 않은 채 호출하지 않는다.** 학습 파일 경로를 "기억"이나 "요약"으로 대체 금지 — Read 도구로 매번 실제 읽어 본문 전체를 prompt 에 넣어야 한다. 공용·프로젝트 둘 다 비어 있으면 `"(빈 파일)"` / `"(없음)"` 으로 명시. 위반 시 도우미가 `[BLOCKED] Prior Learning header 누락` 으로 거부함.
-- `.harness/.noagent` 모드에서 subagent 자리를 메인 Claude 가 대신 수행할 때도 동일하게 학습 파일 2개 (공용 + 프로젝트) 를 Read 해 본인 컨텍스트에 올린다. 누락 시 학습이 반영되지 않은 결정 = 위반.
+- 통합 모드에서 메인 Claude 가 페르소나 도우미(harness-customer-user / harness-qa-engineer / harness-deep-researcher) 자리를 직접 수행할 때도 동일하게 공용 학습 파일을 Read 해 본인 컨텍스트에 올린다. 누락 시 학습이 반영되지 않은 결정 = 위반. (프로젝트 learning 은 2026-05-20 폐기 — 공용만 prepend. `.harness/.noagent` 마커도 동일 폐기.)
 
 ## 4. 추측 구현
 
@@ -55,3 +55,9 @@
 - Codex 리뷰 응답에서 LGTM 판정을 **임의로 해석하지 않는다.** 응답에 명시적 LGTM 라벨이 없으면 NO 로 간주하고 step3 로 되돌린다.
 - 리뷰가 LGTM:NO 인데 메인 Claude 가 직접 코드를 고치고 LGTM:YES 처럼 진행하지 않는다. 반드시 step3 로 되돌아간다.
 - QA 도우미가 "retry 후 PASS" 를 그냥 통과시키지 않는다. flaky 셀로 분류해 기록.
+
+
+---
+
+> **2026-05-20 폐기 안내**: 본 문서가 언급하는 `--noagent` 플래그 / `.harness/.noagent` 마커 / Task subagent 분기는 모두 폐기됨. 모든 harness-* 단위는 `Skill` 도구로 호출하는 *skill* 으로 통합. 자세히: [harness/SKILL.md 실행 옵션](~/.claude/skills/harness/SKILL.md#실행-옵션-2026-05-20-단순화--agent--skill-전환-후).
+

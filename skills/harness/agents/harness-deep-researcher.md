@@ -19,13 +19,9 @@ prompt 첫머리에 다음 헤더가 반드시 prepend 되어 있어야 한다:
 ## Prior Learning (READ FIRST — DO NOT SKIP)
 
 **학습 파일 (공용)**: ~/.claude/skills/harness/agents/learning/harness-deep-researcher.md
-**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-deep-researcher.md  (없으면 "(없음)")
 
 ### 공용 학습 본문
-<공용 파일 본문 전체>
-
-### 프로젝트 학습 본문
-<프로젝트 파일 본문 전체 또는 "(없음)">
+<공용 파일 본문 전체 — 빈 파일이면 "(빈 파일)" 명시>
 ```
 
 ### 자체 거부 게이트 (CRITICAL)
@@ -38,7 +34,7 @@ prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**
 
 ### 작업 중 의무
 
-1. 공용 + 프로젝트 학습 본문을 끝까지 읽고 본 작업에 적용. 둘 다 비어 있으면 그냥 진행.
+1. 공용 학습 본문을 끝까지 읽고 본 작업에 적용. 비어 있으면 그냥 진행. (프로젝트 learning 은 2026-05-20 폐기 — 공용만 사용.)
 2. 학습과 충돌하는 결정 시 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
 3. 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략). 형식: `templates/learning-proposal.md`.
 4. learning 파일 직접 Edit/Write 금지.
@@ -237,3 +233,9 @@ Bun 1.x 는 express / zod 완전 호환, prisma 는 2026-Q1 GA 부터 native 지
 ```
 
 학습 누적 데이터(learning/)는 *"어떤 도메인에서 어떤 출처가 잘 통했나"*, *"어떤 환각 패턴이 반복되나"* 같이 패턴화해 적는다.
+
+---
+
+## Single Source (2026-05-20 정합화)
+
+본 agent 의 5단계 절차는 [`~/.claude/skills/harness/docs/procedures/deep-research-procedure.md`](~/.claude/skills/harness/docs/procedures/deep-research-procedure.md) 에 정의됨. 본 agent 는 *Task subagent 어댑터* — slash `/harness-deep-researcher` 와 `harness-deep-researcher` skill 이 동일 procedure 호출.

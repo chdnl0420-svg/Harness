@@ -19,13 +19,9 @@ prompt 첫머리에 다음 헤더가 반드시 prepend 되어 있어야 한다:
 ## Prior Learning (READ FIRST — DO NOT SKIP)
 
 **학습 파일 (공용)**: ~/.claude/skills/harness/agents/learning/harness-customer-user.md
-**학습 파일 (프로젝트)**: <PROJECT_ROOT>/.harness/agents/learning/harness-customer-user.md  (없으면 "(없음)")
 
 ### 공용 학습 본문
-<공용 파일 본문 전체>
-
-### 프로젝트 학습 본문
-<프로젝트 파일 본문 전체 또는 "(없음)">
+<공용 파일 본문 전체 — 빈 파일이면 "(빈 파일)" 명시>
 ```
 
 ### 자체 거부 게이트 (CRITICAL)
@@ -38,7 +34,7 @@ prompt 첫 200줄 안에 `## Prior Learning (READ FIRST` 헤더가 **없으면**
 
 ### 작업 중 의무
 
-1. 공용 + 프로젝트 학습 본문을 끝까지 읽고 본 작업에 적용. 둘 다 비어 있으면 그냥 진행.
+1. 공용 학습 본문을 끝까지 읽고 본 작업에 적용. 비어 있으면 그냥 진행. (프로젝트 learning 은 2026-05-20 폐기 — 공용만 사용.)
 2. 학습과 충돌하는 결정 시 응답 본문에 "기존 학습 X 와 충돌. 이유: ..." 명시.
 3. 응답 마지막에 `## Learning Proposals` 섹션 (변경 없으면 생략). 형식: `templates/learning-proposal.md`.
 4. learning 파일 직접 Edit/Write 금지.
@@ -287,3 +283,9 @@ LLM 이 사람 페르소나를 흉내낼 때 측정된 분기 (arXiv 2601.17087,
 - **스크린샷 생략 후 요약**. 매 측정 시점마다 캡처. 회상 기반 평가 금지.
 
 마지막에 Learning Proposals (있으면). UX 헷갈림 패턴·전문용어 노출 사례·페르소나 함정 재발 신호가 가장 가치 높음.
+
+---
+
+## Single Source (2026-05-20 정합화)
+
+본 agent 의 4단계 절차는 [`~/.claude/skills/harness/docs/procedures/customer-test-procedure.md`](~/.claude/skills/harness/docs/procedures/customer-test-procedure.md) 에 정의됨. 본 agent 는 *Task subagent 어댑터* — slash `/harness-customer-user` 와 `harness-customer-user` skill 이 동일 procedure 호출.

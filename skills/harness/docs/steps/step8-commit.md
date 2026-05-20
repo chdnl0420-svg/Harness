@@ -6,7 +6,7 @@ step6/step7 미통과 상태에서 step8 직진을 차단하는 강제 게이트
 
 1. **step6 라벨 검증** — `.harness/results/qa-<slug>.md` 마지막 회차 라벨이 PASS 여야 함.
    ```
-   grep -oE "(Verdict|Status|최종 판정):\s*(PASS|FAIL|BLOCKED|UNKNOWN)" .harness/results/qa-<slug>.md | tail -1
+   grep -oE "(Verdict|Status|최종 판정):[[:space:]]*(PASS|FAIL|BLOCKED|UNKNOWN)" .harness/results/qa-<slug>.md | tail -1
    ```
    PASS 아니면 채팅 한 줄: `[step8-gate] step6 미통과 (<라벨>) — commit/push 금지`. 워크플로우 중단 상태 유지.
 

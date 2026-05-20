@@ -13,7 +13,7 @@ step5/step6 의 입력 게이트와 동등 강도. 누락 시 step 스킵 위반
 3. 라벨이 PASS 인 경우만 step7 호출 진행. 검증에 사용한 라벨 원문을 `customer-<slug>.md` 의 *진입 게이트* 섹션에 인용.
 4. 검증 명령 (메인 Claude 가 직접 실행):
    ```
-   grep -oE "(Verdict|Status|최종 판정):\s*(PASS|FAIL|BLOCKED|UNKNOWN)" .harness/results/qa-<slug>.md | tail -1
+   grep -oE "(Verdict|Status|최종 판정):[[:space:]]*(PASS|FAIL|BLOCKED|UNKNOWN)" .harness/results/qa-<slug>.md | tail -1
    ```
 5. 본 게이트는 workflow.md "Step 스킵·무시 금지" 절의 강제 메커니즘이다. SKILL.md "자동 결정 매핑" 표의 어떤 자동 결정으로도 우회 불가.
 

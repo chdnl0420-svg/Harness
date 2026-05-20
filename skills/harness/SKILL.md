@@ -1,6 +1,34 @@
 ---
 name: harness
-description: '/harness 슬래시 커맨드 전용 — 8단계 자동 워크플로우 (step1 초기화 → step2 도메인 → step3 구현 계획 → step4 구현 → step5 Codex 리뷰 → step6 QA → step7 customer 테스트 → step8 commit/(opt-in push) → complete). noask 기본 정책 (사용자 결정 자동 진행, 2 예외만 AskUserQuestion). 페르소나 객관성 필요한 3개 도우미 (harness-qa-engineer/customer-user/deep-researcher) 는 Task subagent, plan/review/build-fix 는 Skill 도구 통합. 트리거: "/harness <한 줄 목표>" 명시 호출 또는 사용자가 "harness 워크플로우" 명시. ※ 다음 skill 들과 다름: autonomous-agent-harness (지속 자동 실행/메모리/스케줄), gan-style-harness (Generator-Evaluator 반복 빌드), eval-harness (eval-driven 평가 프레임워크), healthcare-eval-harness (의료 배포 안전 검증), agent-harness-construction (action space 설계).'
+description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. 본 skill 은 사용자가 명시적으로 `/harness <한 줄 목표>` (또는 `/harness-ask <한 줄 목표>`) 슬래시 커맨드를 *직접 타이핑* 했을 때만 로드. "워크플로우 / 워크플로우 시작 / 도메인 설계 / 구현 계획 / QA 테스트 / Codex 리뷰 / commit / push" 같은 *키워드만으로는 자동 트리거 금지*. SKILL.md 본문의 입력 게이트가 슬래시 커맨드 호출 컨텍스트 부재 시 즉시 거부하고 한 줄 안내 후 종료. 슬래시 호출이 확인된 경우에만 본문 내용 (8단계 자동 워크플로우 step1~complete + noask 기본 정책 + 페르소나 3개 Task subagent + Skill 도구 통합) 진행. ※ 다음 인접 skill 과 무관 (이름만 비슷): autonomous-agent-harness, gan-style-harness, eval-harness, healthcare-eval-harness, agent-harness-construction.'
+---
+
+## CRITICAL: 입력 게이트 — 슬래시 커맨드 호출 컨텍스트 확인 (자동 트리거 차단)
+
+> **본 skill 은 `/harness` (또는 `/harness-ask`) 슬래시 커맨드 명시 호출이 *유일한* 진입 경로다. 다른 모든 자동 트리거 경로는 거부한다.**
+
+본 SKILL.md 가 메인 Claude 의 컨텍스트에 로드된 직후, **본문 어떤 절차도 실행하기 전에** 다음을 자체 검증한다:
+
+1. **호출 컨텍스트 확인** — 본 skill 로드 직전 사용자 메시지가 다음 중 *하나* 인지 확인:
+   - `/harness <한 줄 목표>` 슬래시 커맨드 (직접 타이핑)
+   - `/harness-ask <한 줄 목표>` 슬래시 커맨드 (interactive 모드)
+   - 명시적으로 *"/harness 워크플로우 시작해줘"* / *"harness 슬래시 커맨드로"* 와 같이 슬래시 커맨드를 단어로 *직접 가리킴*
+
+2. **위 셋 중 하나도 아니면 = 자동 트리거 시도 = 즉시 거부**:
+   - 채팅에 한 줄 출력: `[harness] 본 skill 은 /harness 또는 /harness-ask 슬래시 커맨드 명시 호출 전용입니다. 작업을 시작하려면 /harness <한 줄 목표> 형태로 직접 호출하세요.`
+   - 본문의 step1~complete 절차 진행 **금지**.
+   - `.harness/` 폴더 생성·수정 금지.
+   - `bootstrap-runtime.sh` 호출 금지.
+
+3. **거부 사유 enum** (자체 분류 — progress 파일 작성 안 함, 채팅에만 보고):
+   - `KEYWORD_MATCH_ONLY` — 메인 Claude 가 사용자 일반 대화 키워드("워크플로우", "QA" 등) 만 보고 본 skill 을 자동 로드 시도
+   - `RELATED_HARNESS_CONFUSION` — autonomous-agent-harness, gan-style-harness 등 인접 skill 과 혼동되어 로드 시도
+   - `IMPLICIT_INVOCATION` — 사용자가 슬래시 커맨드 없이 *"하네스로 작업"* 같은 모호한 표현으로 시도
+
+4. **검증 통과** (= 슬래시 커맨드 명시 호출 확인) 시에만 아래 본문 절차 진행.
+
+이 게이트는 워크플로우 본문의 어떤 *자동 결정 매핑* 으로도 우회 불가. SKILL.md 가 로드되는 순간 *맨 처음* 동작이다.
+
 ---
 
 ## 산출물 형식 규칙 (CRITICAL — 최우선 적용, 다른 모든 기본값 위)

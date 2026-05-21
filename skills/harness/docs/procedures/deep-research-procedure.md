@@ -17,6 +17,16 @@ Context: <도메인 / 기술 스택 / 결정 영향 범위>
 
 `/harness-deep-researcher` slash 는 *항상 deep tier* 고정 (사용자 호출 시점에서 의도 명확).
 
+### Formal DeepResearch 기준 (명시 호출 / DDD·코드베이스 재적용)
+
+사용자가 `딥리서치`, `deepresearch`, `DeepResearch` 를 명시하거나, DDD 적용 방식과 코드베이스 설계 방식이 구현 구조를 바꾸는 작업이면 **Formal DeepResearch** 로 승격한다.
+
+- 최소 **50회** counted web research pass 를 완료한다.
+- 각 pass 는 서로 다른 검색 쿼리와 관련 결과 또는 페이지 확인을 포함한다.
+- 결과 파일에는 `Research Log` 섹션을 두고 1번부터 마지막 pass 까지 누락 없이 기록한다.
+- 50회 미만이면 완료 보고서를 쓰지 않는다. 도구 제한, rate limit, 접근 실패 등으로 50회를 채우지 못하면 blocker 로 보고한다.
+- DDD / 코드베이스 workflow 재적용에서는 50~70회를 기본 목표로 삼고, 보안·법무·의료·금융처럼 고위험이면 더 높게 잡는다.
+
 ### Step 2: Plan-Act 루프 (subagent 위임 기본)
 
 **기본 경로** (`.harness/.noagent` 없을 때):
@@ -69,6 +79,7 @@ caller: harness-deep-researcher (slash | skill | agent | workflow)
 2. **Fabricated URL**: Sources Consulted 표의 URL 중 `https?://` 형식 아니거나 `example.com` 같은 placeholder → STOP
 3. **Unreachable URL 의 Findings 인용**: Search Trail 에 `unreachable` 라벨된 URL 이 Key Findings 의 `출처:` 로 다시 등장 → 라벨링 누락, STOP
 4. **Inferences/Findings 혼용**: Key Findings 섹션에 `Inferred:` 접두 항목 → 분류 오류, STOP
+5. **Formal DeepResearch 미달**: 명시 deepresearch 또는 DDD/코드베이스 재적용인데 `Research Log` 가 50개 미만이거나 번호가 누락됨 → STOP
 
 위반 발견 시 보고서 *저장 안 함* + 호출자에게 원문 그대로 보여줌.
 

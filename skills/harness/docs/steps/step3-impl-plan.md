@@ -7,7 +7,7 @@
 **입력 게이트 (skip 금지)**:
 - `.harness/domain-<slug>.html` 전문을 **반드시 다시 읽어** 메인 컨텍스트에 올린다 ("step2 에서 만들었으니 기억" 으로 넘기지 않는다).
 - 도메인 파일이 없거나 비어 있으면 step2 로 되돌린다.
-- 도메인 파일의 **DDD 도메인 모델** 섹션을 확인한다. 공통 업무 언어, bounded context, aggregate/invariant 판단, context map 이 없으면 step2 로 되돌린다.
+- 도메인 파일의 **DDD 도메인 모델** 섹션을 확인한다. 공통 업무 언어, bounded context, aggregate/invariant 판단, context map 이 없으면 보강을 강제 권고하고, 보강하지 않으면 사유를 남긴다.
 - **모드 판정 (CRITICAL — 본 step 첫 진입 시 1회만)**: 도메인 plan 의 *Chunks 임계값* 확인 후 모드 결정. 자세히는 아래 "Chunks 분해 절차" 참조.
 - **회송 진입 모드 감지 (CRITICAL)**: 다음 둘 중 하나가 참이면 *회송 진입 모드*. 이 경우 아래 "회송 진입 모드 절차" 를 따른다 (최초 진입 절차와 다름).
   - `.harness/reviews/review-<slug>.md` 의 마지막 회차가 `LGTM: NO`
@@ -64,6 +64,8 @@
 2. **코드베이스 설계 리서치 (필수)** — 외부 리서치와 로컬 탐색을 분리해 둘 다 판단한다:
    - **로컬 코드베이스 리서치**: `rg --files`, `rg`, 관련 문서(`docs/ARCHITECTURE.md`, `docs/ADR.md`, `CLAUDE.md`, `README*`)를 읽고 현재 설계의 실제 경계를 확인한다.
    - **외부 딥 리서치**: DDD 전술 패턴, Clean Architecture, 의존성 역전, migration / anti-corruption boundary 판단이 구현 구조에 영향을 주면 `harness-deep-researcher` 를 호출한다.
+   - 사용자가 `딥리서치`, `deepresearch`, `DDD 및 코드베이스 Harness workflow 재적용` 을 명시한 경우에는 Formal DeepResearch 로 승격해 counted web research pass 50회 이상과 누락 없는 `Research Log` 를 요구한다.
+   - 사용자가 `TDD 딥리서치`, `TDD 적용`, `테스트 주도 개발 적용` 을 명시한 경우에는 TDD Formal DeepResearch 로 승격해 RED/GREEN/REFACTOR, ATDD/BDD, test pyramid, flaky test, coverage 한계, AI coding agent TDD 근거를 함께 확인한다.
    - 결과는 implementation plan 의 *"코드베이스 설계 리서치"* 섹션에 남긴다. 단순 작업이라 외부 리서치가 필요 없더라도 *"로컬 코드베이스 리서치 완료 — DDD 목표 구조 적용 경로 확인"* 을 쓴다.
 3. **(필요 시) 외부 리서치 — `harness-deep-researcher` 위임** — 다음 중 하나라도 해당하면 plan skill 호출 전에 리서치 실시:
    - 도입할 라이브러리·API 사용법이 학습 데이터 cutoff 이후 변경된 영역
@@ -74,15 +76,22 @@
    - 위임 방식·산출물 양식은 [harness-plan SKILL.md Phase 2](../../../harness-plan/SKILL.md) 와 동일 (Topic / Tier / Context / 조사 일자 필드 + `.harness/research/research-<slug>-<NN>-<topic>.md` 저장).
    - 위임 prompt 는 **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수** — `harness-deep-researcher.md` 공용 학습 파일 Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend. 누락 시 도우미가 `[BLOCKED]` 로 거부. (2026-05-20: 프로젝트 learning 폐기 — 공용만 prepend.)
    - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록.
-4. **DDD → 코드 매핑 게이트** — `plan` skill 호출 전에 다음 결정을 명시한다:
+4. **DDD → 코드 매핑 강제 권고** — `plan` skill 호출 전에 다음 결정을 명시한다:
    - 이번 변경이 속한 bounded context 와 건드리면 안 되는 인접 context
    - aggregate root 또는 기존 transaction boundary 를 바꿀지 여부
    - 새 domain event / integration event 가 필요한지 여부
    - 외부 모델이 들어오면 anti-corruption boundary 를 어디에 둘지
-   - 기존 구조와 DDD 이상형이 충돌할 때의 적용 순서. 기본값은 **DDD 목표 구조 우선 + 단계적 마이그레이션**.
+   - 기존 구조와 DDD 이상형이 충돌할 때의 적용 순서. 기본값은 **DDD 목표 구조 우선 + 단계적 마이그레이션**이며, 예외 사유 기록은 필수다.
    - DDD 목표 구조에 필요한 새 계층·모듈·폴더·인터페이스가 있으면 명시적으로 추가한다.
-5. `plan` skill 호출 (Skill tool, skill="plan") — 메인 Claude 가 직접 수행. 2~3번 리서치 결과 파일과 4번 DDD 매핑 결정을 plan prompt 의 *"참고 자료"* 로 prepend.
-6. **(필요 시) 시스템 차원 검토 — `architect` agent 호출** — 다음 중 하나라도 해당하면 plan 본문 완성 후 Codex 리뷰 *전에* 시스템 차원 검토를 거친다:
+5. **TDD 테스트 로드맵 강제 권고** — `plan` skill 호출 전에 다음 결정을 명시한다:
+   - 이번 변경의 관찰 가능한 behavior 와 test oracle. 기대값이 모호하면 step2 또는 사용자 승인으로 되돌린다.
+   - 먼저 실패시킬 RED 테스트 파일·테스트명·실패 예상 메시지.
+   - GREEN 단계의 최소 구현 범위. 테스트를 통과시키는 목적 밖의 기능 추가 금지.
+   - REFACTOR 단계에서 허용되는 정리 범위와 재실행할 테스트 명령.
+   - test pyramid 위치: unit / integration / contract / component / e2e 중 무엇으로 시작하고 왜 그 레벨이 가장 작고 빠른지.
+   - TDD 를 따르지 못하는 사유가 있으면 명시한다. 문서·설정처럼 실행 가능한 behavior 가 없거나, 기존 테스트 인프라가 전혀 없어 BLOCKED 인 경우를 대표 예외로 본다. 예외 시 대체 검증과 추후 테스트 부채 기록은 필수다.
+6. `plan` skill 호출 (Skill tool, skill="plan") — 메인 Claude 가 직접 수행. 2~3번 리서치 결과 파일과 4번 DDD 매핑 결정, 5번 TDD 테스트 로드맵을 plan prompt 의 *"참고 자료"* 로 prepend.
+7. **(필요 시) 시스템 차원 검토 — `architect` agent 호출** — 다음 중 하나라도 해당하면 plan 본문 완성 후 Codex 리뷰 *전에* 시스템 차원 검토를 거친다:
    - 새 모듈·경계·인터페이스가 도입됨 (기존 계층 구조에 새 layer 추가)
    - 둘 이상의 서비스·프로세스·외부 API 간 통신 경로가 신설됨
    - 데이터 모델·스키마 변경이 다른 코드 영역으로 파급
@@ -90,33 +99,36 @@
    - bounded context 분리, aggregate 경계 변경, domain event 도입, anti-corruption layer 추가가 plan 에 포함
    - 호출 방식: `Task` 도구 `subagent_type="architect"`. 입력은 `implementation-<slug>.html` 본문 + 도메인 plan 본문. 응답은 *경계·일관성·확장성* 관점 권고. 반영 후 Codex 리뷰로.
    - 결과는 `implementation-<slug>.html` 의 *"시스템 차원 검토"* 섹션으로 누적.
-7. skill 결과를 Codex 가 리뷰
-8. 리뷰 결과를 메인 Claude 가 검토 / 반영
-9. **모드별 파일 작성 분기**:
+8. skill 결과를 Codex 가 리뷰
+9. 리뷰 결과를 메인 Claude 가 검토 / 반영
+10. **모드별 파일 작성 분기**:
    - **단일 모드**: `implementation-<slug>.html` 작성 → step4 로 (1 회만)
    - **Chunks 모드**: 아래 "Chunks 분해 절차" 의 4단계 수행 → 첫 chunk 의 step4 로 진입 → chunk loop 시작
-10. **DDD 코드베이스 검증 실행** — implementation 파일 작성 직후 다음 검증기를 실행한다. 실패하면 step4 진입 금지, 누락 섹션을 보강한 뒤 재실행한다.
+11. **DDD/TDD 권고 검증 실행** — implementation 파일 작성 직후 다음 검증기를 실행한다. 실패는 도구/문서 구조 문제로 보고, 산출물의 DDD/TDD 권고 누락은 경고와 예외 사유 보강 대상으로 다룬다.
    ```bash
    python ~/.codex/skills/harness/core/validate-ddd-codebase.py --skill-root ~/.codex/skills/harness --project <PROJECT_ROOT> --slug <slug> --require-artifacts
    ```
    Windows 경로에서는 같은 스크립트를 `python C:\Users\<USER>\.codex\skills\harness\core\validate-ddd-codebase.py --skill-root C:\Users\<USER>\.codex\skills\harness --project <PROJECT_ROOT> --slug <slug> --require-artifacts` 형태로 실행한다.
 
-**필수 산출 섹션** (`implementation-<slug>.html` 에 반드시 들어가야 함):
+**필수 검토 산출 섹션** (`implementation-<slug>.html` 에 넣는 것을 강제 권고. 생략 시 사유와 대체 검증 기록 필수):
 - **변경 대상 파일 목록** — 수정/신규 구분, 절대 경로
 - **기존 코드 영향 영역** — 1번 탐색 결과
 - **코드베이스 설계 리서치** — 로컬 구조 분석 + 외부 딥 리서치 수행 여부 + 참고 research 파일
 - **DDD 코드베이스 매핑** — bounded context, aggregate/invariant, application service, repository/adapter boundary, domain event, anti-corruption boundary 를 실제 모듈·파일·테스트로 어떻게 옮길지
 - **DDD 마이그레이션 계획** — 기존 구조와 DDD 목표 구조의 차이, 새 경계·계층·모듈 추가 순서, rollback 경로
+- **Architecture Decision / Views** — ADR 대상 결정, C4/arc42 수준의 context/container/component 관점, 이해관계자 우려사항
+- **Fitness Function / Enforcement** — dependency direction, cycle, layer/slice rule, module boundary 를 어떤 테스트·lint·validator 로 고정할지
+- **TDD RED/GREEN/REFACTOR 계획** — 먼저 실패시킬 테스트, 실패 증거 수집 방법, 최소 구현, refactor 후 재검증 명령, TDD 예외 사유(있을 때만)
 - **단계별 구현 순서** — 각 단계의 *입력 / 작업 / 검증 방법* 3축
 - **테스트 전략** — 어떤 레벨(unit/integration/e2e) 로 무엇을 검증
 - **위험·롤백 경로** — 실패 시 되돌리는 방법
 
-위 8개 섹션 중 하나라도 비어 있으면 step4 진입 금지. 누락된 섹션은 plan skill 재호출 또는 메인이 직접 채운다.
+위 11개 섹션 중 하나라도 비어 있으면 보강을 강제 권고한다. 보강하지 않으면 누락 사유와 대체 검증을 plan 에 남기는 것이 필수다.
 
 **제약**:
 - plan 본문에 *"적절히"*, *"필요시"*, *"어떻게든"* 같은 모호어 등장 시 step4 가 추측 코딩으로 빠진다. 발견되면 구체화 후 진행.
 - domain 설계에 없는 기능을 plan 에 임의로 추가 금지. 추가가 필요하면 step2 로 되돌린다.
-- DDD 목표 구조와 기존 코드베이스가 맞지 않으면 DDD 목표 구조를 우선한다. 변경 폭이 커지면 Chunks 모드로 나누고, migration/rollback 을 명시한 뒤 진행한다.
+- DDD 목표 구조와 기존 코드베이스가 맞지 않으면 DDD 목표 구조를 우선하는 것을 강제 권고한다. 변경 폭이 커지면 Chunks 모드로 나누고, migration/rollback 을 명시한 뒤 진행한다. 따르지 못하면 이유와 대체 검증을 남긴다.
 
 ---
 
@@ -182,7 +194,7 @@ mode: single | chunks (chunks=N, 분해 사유: <어떤 신호 어떤 값>)
 
 ### Step 4: 첫 chunk 의 implementation plan 작성
 
-`chunk-1` (의존성 없는 가장 첫 chunk) 의 `.harness/implementation-<slug>-chunk-1.html` 작성. 양식은 단일 모드의 *필수 산출 섹션 8개 전체* 그대로. 즉 변경 대상 파일 목록 / 기존 코드 영향 영역 / 코드베이스 설계 리서치 / DDD 코드베이스 매핑 / DDD 마이그레이션 계획 / 단계별 구현 순서 / 테스트 전략 / 위험·롤백 경로를 모두 포함한다. 단 *해당 chunk 범위* 로만 한정한다.
+`chunk-1` (의존성 없는 가장 첫 chunk) 의 `.harness/implementation-<slug>-chunk-1.html` 작성. 양식은 단일 모드의 *필수 검토 산출 섹션 11개 전체* 그대로 강제 권고한다. 즉 변경 대상 파일 목록 / 기존 코드 영향 영역 / 코드베이스 설계 리서치 / DDD 코드베이스 매핑 / DDD 마이그레이션 계획 / Architecture Decision·Views / Fitness Function·Enforcement / TDD RED/GREEN/REFACTOR 계획 / 단계별 구현 순서 / 테스트 전략 / 위험·롤백 경로를 모두 포함한다. 단 *해당 chunk 범위* 로만 한정한다. 생략 시 사유와 대체 검증 기록은 필수다.
 
 ### Chunk Loop 동작 (step4~6 의 사이클)
 

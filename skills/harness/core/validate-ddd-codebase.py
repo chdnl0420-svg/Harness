@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate that Harness enforces DDD target structure through step2-step4.
+Validate that Harness keeps DDD/TDD as strong recommendations through step2-step4.
 
 Usage:
   python validate-ddd-codebase.py --skill-root <path-to-harness-skill>
@@ -21,15 +21,15 @@ from pathlib import Path
 MASTER_CHECKS = {
     "harness-plan/SKILL.md": [
         "DDD 도메인 모델",
-        "DDD 이상형을 구현 계획의 기준으로 강제",
+        "DDD 도메인 모델링 강제 권고",
         "DDD 목표 구조",
         "단계적 migration plan",
-        "DDD 강제 적용 검사",
+        "DDD 강제 권고 점검",
     ],
     "harness/docs/steps/step2-domain.md": [
-        "DDD 도메인 설계 게이트",
+        "DDD 도메인 설계 강제 권고",
         "목표 구조를",
-        "구현 계획의 기준으로 강제",
+        "구현 계획의 기본 기준",
         "DDD 목표 구조로 옮기는 migration plan",
     ],
     "harness/docs/steps/step3-impl-plan.md": [
@@ -37,21 +37,35 @@ MASTER_CHECKS = {
         "DDD 코드베이스 매핑",
         "DDD 마이그레이션 계획",
         "DDD 목표 구조 우선",
-        "위 8개 섹션",
-        "필수 산출 섹션 8개 전체",
+        "Formal DeepResearch",
+        "Research Log",
+        "TDD Formal DeepResearch",
+        "TDD 테스트 로드맵 강제 권고",
+        "TDD RED/GREEN/REFACTOR 계획",
+        "Architecture Decision / Views",
+        "Fitness Function / Enforcement",
+        "위 11개 섹션",
+        "필수 검토 산출 섹션",
+        "강제 권고",
         "`chunks-overview` 는 요약 산출물",
     ],
     "harness/docs/steps/step4-impl.md": [
-        "step3 의 8개 필수 섹션",
+        "step3 의 11개 필수 검토 섹션",
         "implementation-<slug>-chunk-<i>.html",
         "implementation-<slug>-chunks-overview.html",
         "DDD 코드베이스 매핑",
         "DDD 마이그레이션 계획",
+        "TDD 강제 권고",
+        "RED 증거 기록",
+        "GREEN 최소 구현",
+        "REFACTOR 재검증",
     ],
     "harness/docs/workflow.md": [
         "DDD 코드 매핑",
         "DDD 마이그레이션 계획",
-        "DDD 목표 구조 우선",
+        "강제 권고",
+        "TDD 테스트 로드맵",
+        "RED/GREEN/REFACTOR",
     ],
     "harness/templates/plan.md": [
         "Target DDD Structure",
@@ -59,16 +73,32 @@ MASTER_CHECKS = {
         "Domain Events",
         "Repository / Adapter Boundary",
         "Persistence / Transaction Boundary",
+        "Architecture Decision / Views",
+        "Fitness Function / Enforcement",
         "Architecture enforcement",
-        "DDD 목표 구조가 충돌하면 DDD 목표 구조를 우선",
+        "TDD Plan",
+        "Behavior under test",
+        "Test oracle",
+        "RED",
+        "GREEN",
+        "REFACTOR",
+        "강제 권고",
+        "TDD exception",
+    ],
+    "harness/docs/donot.md": [
+        "test-after-code 금지 수준의 강제 권고",
+        "RED 실패 증거 없는 GREEN 주장 금지 수준의 강제 권고",
     ],
     "harness/docs/procedures/deep-research-procedure.md": [
         "DDD 적용 방식",
         "코드베이스 설계 방식",
+        "Formal DeepResearch",
+        "최소 **50회**",
+        "Research Log",
     ],
 }
 
-FORBIDDEN_SOFTENING = [
+SOFTENING_WARNINGS = [
     "기존 구조 우선",
     "최소 변경",
     "전술 DDD 불필요",
@@ -94,6 +124,11 @@ IMPLEMENTATION_REQUIRED = [
     "코드베이스 설계 리서치",
     "DDD 코드베이스 매핑",
     "DDD 마이그레이션 계획",
+    "Architecture Decision",
+    "Fitness Function",
+    "TDD RED",
+    "GREEN",
+    "REFACTOR",
     "단계별 구현 순서",
     "테스트 전략",
     "위험",
@@ -153,9 +188,29 @@ def check_forbidden(paths: list[Path], errors: list[str]) -> None:
         if not path.exists() or path.is_dir():
             continue
         text = read_text(path)
-        for phrase in FORBIDDEN_SOFTENING:
+        for phrase in SOFTENING_WARNINGS:
             if phrase in text:
-                errors.append(f"FORBIDDEN softening phrase in {path}: {phrase}")
+                errors.append(f"SOFTENING phrase in {path}: {phrase}")
+
+
+def check_recommended(path: Path, recommended: list[str], warnings: list[str]) -> None:
+    if not path.exists():
+        warnings.append(f"MISSING recommended-check file: {path}")
+        return
+    text = read_text(path)
+    for marker in recommended:
+        if marker not in text:
+            warnings.append(f"MISSING recommended marker in {path}: {marker}")
+
+
+def check_softening(paths: list[Path], warnings: list[str]) -> None:
+    for path in paths:
+        if not path.exists() or path.is_dir():
+            continue
+        text = read_text(path)
+        for phrase in SOFTENING_WARNINGS:
+            if phrase in text:
+                warnings.append(f"SOFTENING phrase in {path}: {phrase}")
 
 
 def validate_master(skill_root: Path) -> list[str]:
@@ -165,7 +220,6 @@ def validate_master(skill_root: Path) -> list[str]:
         path = skill_file(skill_root, relative)
         checked_paths.append(path)
         check_required(path, required, errors)
-    check_forbidden(checked_paths, errors)
     return errors
 
 
@@ -199,18 +253,18 @@ def validate_project(project: Path, slug: str | None, require_artifacts: bool) -
         msg = f"MISSING domain artifact under {project / '.harness'}"
         (errors if require_artifacts else warnings).append(msg)
     for path in domains:
-        check_required(path, DOMAIN_REQUIRED, errors)
+        check_recommended(path, DOMAIN_REQUIRED, warnings)
 
     if not implementations:
         msg = f"MISSING implementation artifact under {project / '.harness'}"
         (errors if require_artifacts else warnings).append(msg)
     for path in implementations:
-        check_required(path, IMPLEMENTATION_REQUIRED, errors)
+        check_recommended(path, IMPLEMENTATION_REQUIRED, warnings)
 
     for path in chunk_overviews:
-        check_required(path, CHUNKS_OVERVIEW_REQUIRED, errors)
+        check_recommended(path, CHUNKS_OVERVIEW_REQUIRED, warnings)
 
-    check_forbidden(domains + implementations + chunk_overviews, errors)
+    check_softening(domains + implementations + chunk_overviews, warnings)
 
     for warning in warnings:
         print(f"WARN: {warning}")

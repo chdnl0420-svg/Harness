@@ -137,9 +137,9 @@ noask 모드 산출물도 interactive 모드와 동일하게 메인 컨텍스트
 리서치 불필요 판단:
 - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록 (스킵 금지). 결과 파일도 만들지 않는다.
 
-### Phase 2.5. DDD 도메인 모델링 게이트
+### Phase 2.5. DDD 도메인 모델링 강제 권고
 
-Phase 3 초안 작성 전에 DDD 관점의 목표 모델을 만든다. 이 게이트는 **DDD 이상형을 구현 계획의 기준으로 강제**한다. 기존 코드 구조가 이 모델과 다르면, 기존 구조를 유지하지 말고 DDD 목표 구조로 옮기는 마이그레이션 계획을 남긴다.
+Phase 3 초안 작성 전에 DDD 관점의 목표 모델을 만드는 것을 **강제 권고**한다. 이 권고는 DDD 이상형을 구현 계획의 기본 기준으로 삼게 한다. 기존 코드 구조가 이 모델과 다르면 DDD 목표 구조로 옮기는 마이그레이션 계획을 우선 검토하고, 따르지 못하면 이유와 대체 검증을 남기는 것이 필수다.
 
 반드시 정리할 항목:
 
@@ -151,10 +151,10 @@ Phase 3 초안 작성 전에 DDD 관점의 목표 모델을 만든다. 이 게�
 - **Domain Event 후보** — 상태 변화가 다른 영역에 알려져야 할 때만 적는다. 단순 내부 처리면 만들지 않는다.
 - **Context Map / Anti-Corruption Boundary** — 외부 API·레거시·다른 모듈 모델이 섞이면 번역 경계를 둔다.
 
-강제 규칙:
-- DDD 목표 구조를 기준으로 bounded context, aggregate, domain service, repository boundary, anti-corruption boundary 필요 여부를 판정한다.
-- 기존 코드가 CRUD 중심이어도 도메인 모델과 application service 경계를 명시한다.
-- 기존 구조가 DDD 목표 모델과 충돌하면, 현재 구조에 맞추지 말고 DDD 목표 구조로 옮기는 단계적 migration plan 을 만든다.
+강제 권고 규칙:
+- DDD 목표 구조를 기준으로 bounded context, aggregate, domain service, repository boundary, anti-corruption boundary 필요 여부를 먼저 판정한다.
+- 기존 코드가 CRUD 중심이어도 도메인 모델과 application service 경계를 검토한다.
+- 기존 구조가 DDD 목표 모델과 충돌하면 DDD 목표 구조로 옮기는 단계적 migration plan 을 우선 작성한다. 따르지 못하면 이유와 대체 검증을 남기는 것이 필수다.
 - aggregate 를 데이터 묶음이나 컬렉션 이름처럼 쓰지 않는다. aggregate 는 업무 규칙과 트랜잭션 경계다.
 
 ### Phase 3. 도메인 설계 초안 작성
@@ -179,7 +179,7 @@ Phase 1 답변 + Phase 2 리서치 + Phase 2.5 DDD 모델을 합쳐 **도메인 
 2. **전문용어 검사**: 풀어 설명 없이 등장한 영어 약어·기술용어 0개?
 3. **문장 길이**: 한 문장이 두 줄 넘는 곳 없나?
 4. **수동태 검사**: *"~된다"*, *"~처리된다"* 같은 표현 없나?
-5. **DDD 강제 적용 검사**: 공통 업무 언어, bounded context, aggregate/transaction boundary, application service, repository/adapter boundary 가 빠지지 않았나? 단순 작업이어도 생략하지 않는다.
+5. **DDD 강제 권고 점검**: 공통 업무 언어, bounded context, aggregate/transaction boundary, application service, repository/adapter boundary 를 검토했나? 생략했다면 이유와 대체 검증을 필수로 남겼나?
 
 하나라도 NO → **다시 작성.** 점검 통과 후 비로소 호출자에게 초안 반환.
 

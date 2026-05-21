@@ -32,7 +32,7 @@ research_count: 0
 ### Dependencies
 - <library/tool> @ <version> — <why> (ref: research-XX if applicable)
 
-### DDD Design
+### DDD Design (강제 권고)
 - **Ubiquitous Language:** <terms shared by product, code, and tests>
 - **Bounded Context:** <primary context and adjacent contexts>
 - **Aggregate / Invariant:** <aggregate root or "not needed"; invariant protected>
@@ -41,8 +41,8 @@ research_count: 0
 - **Repository / Adapter Boundary:** <persistence and external-system ports; implementations outside domain core>
 - **Persistence / Transaction Boundary:** <aggregate save boundary; cross-aggregate consistency strategy>
 - **Context Map / Boundary:** <external or legacy model boundaries; anti-corruption layer if needed>
-- **Target DDD Structure:** <domain/application/infrastructure/interface boundaries to enforce>
-- **Migration Plan:** <how existing code moves to the target DDD structure>
+- **Target DDD Structure:** <domain/application/infrastructure/interface boundaries to enforce; exception reason required if not followed>
+- **Migration Plan:** <how existing code moves to the target DDD structure, or why migration is not followed>
 
 ### Codebase Design Research
 - **Existing module map:** <files/modules read>
@@ -50,8 +50,19 @@ research_count: 0
 - **Current transaction / persistence flow:** <where state changes are validated and committed>
 - **Tests around affected behavior:** <unit/integration/e2e files that cover the invariant or gap>
 - **DDD-to-code mapping:** <where domain model lands in the current codebase>
+- **Architecture Decision / Views:** <ADR-worthy decisions and context/container/component views affected>
+- **Fitness Function / Enforcement:** <dependency direction, cycle, layer/slice, module-boundary tests or lint/validator checks>
 - **Architecture enforcement:** <existing or proposed dependency tests, lint rules, or validator checks>
 - **Research refs:** <research files or "external research not needed — reason">
+
+### TDD Plan (강제 권고)
+- **Behavior under test:** <observable behavior or bug reproduction>
+- **Test oracle:** <expected result, invariant, property, or acceptance criterion that decides PASS/FAIL>
+- **RED:** <test file/name to write first; expected failure command and message>
+- **GREEN:** <minimum production change allowed to pass RED>
+- **REFACTOR:** <cleanup allowed after green; exact tests/commands to rerun>
+- **Test level:** <unit | integration | contract | component | e2e; why this is the smallest useful level>
+- **TDD exception:** <N/A or required reason + replacement verification + follow-up debt>
 
 ### Risks
 | 위험 | 영향 | 완화 | 근거 |
@@ -118,12 +129,23 @@ research_count: 0
 - [ ] (필요시) 리서치 서브에이전트 호출 완료 및 결과 반영
 - [ ] DDD / 코드베이스 설계 판단이 구현 구조에 영향이면 딥 리서치 수행
 
-### 7. DDD / 코드베이스 설계 정합성
+### 7. DDD / 코드베이스 설계 정합성 (강제 권고)
 - [ ] 공통 업무 언어와 코드 이름이 충돌하지 않음
 - [ ] bounded context 를 넘는 변경은 명시적으로 경계 처리
 - [ ] aggregate / invariant 판단이 실제 업무 규칙과 연결됨
-- [ ] 기존 코드와 DDD 목표 구조가 충돌하면 DDD 목표 구조를 우선함
-- [ ] DDD 마이그레이션 계획과 rollback 경로를 포함함
+- [ ] 기존 코드와 DDD 목표 구조가 충돌하면 DDD 목표 구조 우선을 먼저 검토함
+- [ ] DDD 마이그레이션 계획과 rollback 경로를 포함하거나, 생략 사유와 대체 검증을 필수로 기록함
+- [ ] ADR 대상 결정과 architecture view 영향이 기록됨
+- [ ] dependency direction / cycle / module boundary 를 fitness function 으로 검증함
+
+### 7b. TDD 정합성 (강제 권고)
+- [ ] production code 수정 전에 RED 테스트를 먼저 정의함
+- [ ] RED 실패 증거를 남길 명령과 예상 실패 메시지가 있음
+- [ ] GREEN 은 RED 를 통과시키는 최소 구현으로 제한됨
+- [ ] REFACTOR 후 동일 테스트와 관련 regression 을 다시 실행함
+- [ ] 테스트 레벨이 test pyramid 관점에서 가장 작고 빠른 유효 레벨임
+- [ ] TDD 를 따르지 못하면 예외 사유와 대체 검증을 필수로 기록함
+- [ ] code coverage 숫자만으로 품질을 주장하지 않고 oracle/assertion 품질을 확인함
 
 ### 8. 보안/성능 영향
 - [ ] 보안 민감 영역 식별 (인증, 입력 검증, 시크릿)

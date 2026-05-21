@@ -32,6 +32,27 @@ research_count: 0
 ### Dependencies
 - <library/tool> @ <version> — <why> (ref: research-XX if applicable)
 
+### DDD Design
+- **Ubiquitous Language:** <terms shared by product, code, and tests>
+- **Bounded Context:** <primary context and adjacent contexts>
+- **Aggregate / Invariant:** <aggregate root or "not needed"; invariant protected>
+- **Domain Events:** <business-significant events or "none"; integration events if boundary-crossing>
+- **Application Service Boundary:** <use-case orchestration location; no business rules here>
+- **Repository / Adapter Boundary:** <persistence and external-system ports; implementations outside domain core>
+- **Persistence / Transaction Boundary:** <aggregate save boundary; cross-aggregate consistency strategy>
+- **Context Map / Boundary:** <external or legacy model boundaries; anti-corruption layer if needed>
+- **Target DDD Structure:** <domain/application/infrastructure/interface boundaries to enforce>
+- **Migration Plan:** <how existing code moves to the target DDD structure>
+
+### Codebase Design Research
+- **Existing module map:** <files/modules read>
+- **Dependency direction:** <current direction and proposed change>
+- **Current transaction / persistence flow:** <where state changes are validated and committed>
+- **Tests around affected behavior:** <unit/integration/e2e files that cover the invariant or gap>
+- **DDD-to-code mapping:** <where domain model lands in the current codebase>
+- **Architecture enforcement:** <existing or proposed dependency tests, lint rules, or validator checks>
+- **Research refs:** <research files or "external research not needed — reason">
+
 ### Risks
 | 위험 | 영향 | 완화 | 근거 |
 |------|------|------|------|
@@ -95,21 +116,29 @@ research_count: 0
 ### 6. 외부 정보 필요성
 - [ ] 외부 리서치 필요 여부 판단
 - [ ] (필요시) 리서치 서브에이전트 호출 완료 및 결과 반영
+- [ ] DDD / 코드베이스 설계 판단이 구현 구조에 영향이면 딥 리서치 수행
 
-### 7. 보안/성능 영향
+### 7. DDD / 코드베이스 설계 정합성
+- [ ] 공통 업무 언어와 코드 이름이 충돌하지 않음
+- [ ] bounded context 를 넘는 변경은 명시적으로 경계 처리
+- [ ] aggregate / invariant 판단이 실제 업무 규칙과 연결됨
+- [ ] 기존 코드와 DDD 목표 구조가 충돌하면 DDD 목표 구조를 우선함
+- [ ] DDD 마이그레이션 계획과 rollback 경로를 포함함
+
+### 8. 보안/성능 영향
 - [ ] 보안 민감 영역 식별 (인증, 입력 검증, 시크릿)
 - [ ] 성능 임팩트 고려 (DB, 메모리, IO)
 
-### 8. Success Criteria
+### 9. Success Criteria
 - [ ] 완료 판단 기준 명시
 - [ ] 테스트 가능한 기준
 - [ ] 사용자 확인 포인트
 
-### 9. 예상 시간
+### 10. 예상 시간
 - [ ] 각 phase 예상 시간 합리적
 - [ ] 전체 시간 작업 규모에 적절
 
-### 10. 사용자 기대 정합성
+### 11. 사용자 기대 정합성
 - [ ] 사용자 요청이 암시한 결과와 일치
 - [ ] 함정(side effect) 명시
 

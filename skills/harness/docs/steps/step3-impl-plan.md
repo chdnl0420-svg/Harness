@@ -7,6 +7,7 @@
 **입력 게이트 (skip 금지)**:
 - `.harness/domain-<slug>.html` 전문을 **반드시 다시 읽어** 메인 컨텍스트에 올린다 ("step2 에서 만들었으니 기억" 으로 넘기지 않는다).
 - 도메인 파일이 없거나 비어 있으면 step2 로 되돌린다.
+- 도메인 파일의 **DDD 도메인 모델** 섹션을 확인한다. 공통 업무 언어, bounded context, aggregate/invariant 판단, context map 이 없으면 step2 로 되돌린다.
 - **모드 판정 (CRITICAL — 본 step 첫 진입 시 1회만)**: 도메인 plan 의 *Chunks 임계값* 확인 후 모드 결정. 자세히는 아래 "Chunks 분해 절차" 참조.
 - **회송 진입 모드 감지 (CRITICAL)**: 다음 둘 중 하나가 참이면 *회송 진입 모드*. 이 경우 아래 "회송 진입 모드 절차" 를 따른다 (최초 진입 절차와 다름).
   - `.harness/reviews/review-<slug>.md` 의 마지막 회차가 `LGTM: NO`
@@ -38,7 +39,7 @@
 **금지**: 직전 회차와 동일한 plan 본문을 재생성하지 말 것. 위 결함 항목이 plan 의 "변경 대상 파일 목록" / "단계별 구현 순서" 에 실제 차이로 반영되어야 step4 진입 가능.
 ```
 
-3. **implementation-<slug>.md 수정 이력 섹션 강제** — 회송 모드에서는 새 plan 작성 후 `implementation-<slug>.md` 끝에 다음 섹션을 누적 append:
+3. **implementation-<slug>.html 수정 이력 섹션 강제** — 회송 모드에서는 새 plan 작성 후 `implementation-<slug>.html` 끝에 다음 섹션을 누적 append:
 
 ```markdown
 ## 수정 이력
@@ -55,42 +56,67 @@
    - 도메인 설계의 *영향 영역* 에 해당하는 기존 파일 식별 (Glob/Grep)
    - 변경될 인터페이스·데이터 구조·의존성 목록화
    - 이미 존재하는 비슷한 패턴(naming, layout, error handling) 확인
-   - 결과는 `.harness/implementation-<slug>.md` 작성 시 *"기존 코드 영향 영역"* 섹션으로 반영
+   - 기존 코드의 업무 용어가 step2 의 **공통 업무 언어** 와 일치하는지 확인
+   - 현재 모듈·레이어·서비스 경계가 step2 의 **bounded context** 와 어떻게 맞거나 어긋나는지 정리
+   - persistence / transaction / validation / event 처리 위치를 찾아 aggregate·invariant 후보와 연결
+   - 결과는 `.harness/implementation-<slug>.html` 작성 시 *"기존 코드 영향 영역"* 과 *"DDD 코드베이스 매핑"* 섹션으로 반영
    - 탐색 없이 plan 만 만들면 step4 에서 추측 코딩 → 리뷰 fail → step3 무한 루프
-2. **(필요 시) 외부 리서치 — `harness-deep-researcher` 위임** — 다음 중 하나라도 해당하면 plan skill 호출 전에 리서치 실시:
+2. **코드베이스 설계 리서치 (필수)** — 외부 리서치와 로컬 탐색을 분리해 둘 다 판단한다:
+   - **로컬 코드베이스 리서치**: `rg --files`, `rg`, 관련 문서(`docs/ARCHITECTURE.md`, `docs/ADR.md`, `CLAUDE.md`, `README*`)를 읽고 현재 설계의 실제 경계를 확인한다.
+   - **외부 딥 리서치**: DDD 전술 패턴, Clean Architecture, 의존성 역전, migration / anti-corruption boundary 판단이 구현 구조에 영향을 주면 `harness-deep-researcher` 를 호출한다.
+   - 결과는 implementation plan 의 *"코드베이스 설계 리서치"* 섹션에 남긴다. 단순 작업이라 외부 리서치가 필요 없더라도 *"로컬 코드베이스 리서치 완료 — DDD 목표 구조 적용 경로 확인"* 을 쓴다.
+3. **(필요 시) 외부 리서치 — `harness-deep-researcher` 위임** — 다음 중 하나라도 해당하면 plan skill 호출 전에 리서치 실시:
    - 도입할 라이브러리·API 사용법이 학습 데이터 cutoff 이후 변경된 영역
    - 마이그레이션 비용 / breaking change 영향 평가가 필요
    - 보안 권고(OWASP/NIST/CVE) 가 구현 결정에 직접 영향
    - 도메인 단계의 *"외부 의존성: 조사 필요"* 항목이 미해결로 남음
+   - DDD 모델의 bounded context / aggregate / domain event / anti-corruption boundary 를 코드 구조로 옮기는 방식이 불명확함
    - 위임 방식·산출물 양식은 [harness-plan SKILL.md Phase 2](../../../harness-plan/SKILL.md) 와 동일 (Topic / Tier / Context / 조사 일자 필드 + `.harness/research/research-<slug>-<NN>-<topic>.md` 저장).
    - 위임 prompt 는 **[Learning Prepend 계약](../workflow.md#critical-learning-prepend-계약-모든-harness--agent-공통) 1·2·3·4 단계 수행 필수** — `harness-deep-researcher.md` 공용 학습 파일 Read 후 `## Prior Learning (READ FIRST — DO NOT SKIP)` 헤더로 prepend. 누락 시 도우미가 `[BLOCKED]` 로 거부. (2026-05-20: 프로젝트 learning 폐기 — 공용만 prepend.)
    - 불필요하면 *"리서치 필요 없음 — 사유: …"* 한 줄 기록.
-3. `plan` skill 호출 (Skill tool, skill="plan") — 메인 Claude 가 직접 수행. 2번 리서치 결과 파일은 plan prompt 의 *"참고 자료"* 로 prepend.
-4. **(필요 시) 시스템 차원 검토 — `architect` agent 호출** — 다음 중 하나라도 해당하면 plan 본문 완성 후 Codex 리뷰 *전에* 시스템 차원 검토를 거친다:
+4. **DDD → 코드 매핑 게이트** — `plan` skill 호출 전에 다음 결정을 명시한다:
+   - 이번 변경이 속한 bounded context 와 건드리면 안 되는 인접 context
+   - aggregate root 또는 기존 transaction boundary 를 바꿀지 여부
+   - 새 domain event / integration event 가 필요한지 여부
+   - 외부 모델이 들어오면 anti-corruption boundary 를 어디에 둘지
+   - 기존 구조와 DDD 이상형이 충돌할 때의 적용 순서. 기본값은 **DDD 목표 구조 우선 + 단계적 마이그레이션**.
+   - DDD 목표 구조에 필요한 새 계층·모듈·폴더·인터페이스가 있으면 명시적으로 추가한다.
+5. `plan` skill 호출 (Skill tool, skill="plan") — 메인 Claude 가 직접 수행. 2~3번 리서치 결과 파일과 4번 DDD 매핑 결정을 plan prompt 의 *"참고 자료"* 로 prepend.
+6. **(필요 시) 시스템 차원 검토 — `architect` agent 호출** — 다음 중 하나라도 해당하면 plan 본문 완성 후 Codex 리뷰 *전에* 시스템 차원 검토를 거친다:
    - 새 모듈·경계·인터페이스가 도입됨 (기존 계층 구조에 새 layer 추가)
    - 둘 이상의 서비스·프로세스·외부 API 간 통신 경로가 신설됨
    - 데이터 모델·스키마 변경이 다른 코드 영역으로 파급
    - 동시성·트랜잭션·캐싱 같은 시스템 차원 결정이 plan 에 포함
+   - bounded context 분리, aggregate 경계 변경, domain event 도입, anti-corruption layer 추가가 plan 에 포함
    - 호출 방식: `Task` 도구 `subagent_type="architect"`. 입력은 `implementation-<slug>.html` 본문 + 도메인 plan 본문. 응답은 *경계·일관성·확장성* 관점 권고. 반영 후 Codex 리뷰로.
    - 결과는 `implementation-<slug>.html` 의 *"시스템 차원 검토"* 섹션으로 누적.
-5. skill 결과를 Codex 가 리뷰
-6. 리뷰 결과를 메인 Claude 가 검토 / 반영
-7. **모드별 파일 작성 분기**:
+7. skill 결과를 Codex 가 리뷰
+8. 리뷰 결과를 메인 Claude 가 검토 / 반영
+9. **모드별 파일 작성 분기**:
    - **단일 모드**: `implementation-<slug>.html` 작성 → step4 로 (1 회만)
    - **Chunks 모드**: 아래 "Chunks 분해 절차" 의 4단계 수행 → 첫 chunk 의 step4 로 진입 → chunk loop 시작
+10. **DDD 코드베이스 검증 실행** — implementation 파일 작성 직후 다음 검증기를 실행한다. 실패하면 step4 진입 금지, 누락 섹션을 보강한 뒤 재실행한다.
+   ```bash
+   python ~/.codex/skills/harness/core/validate-ddd-codebase.py --skill-root ~/.codex/skills/harness --project <PROJECT_ROOT> --slug <slug> --require-artifacts
+   ```
+   Windows 경로에서는 같은 스크립트를 `python C:\Users\<USER>\.codex\skills\harness\core\validate-ddd-codebase.py --skill-root C:\Users\<USER>\.codex\skills\harness --project <PROJECT_ROOT> --slug <slug> --require-artifacts` 형태로 실행한다.
 
-**필수 산출 섹션** (`implementation-<slug>.md` 에 반드시 들어가야 함):
+**필수 산출 섹션** (`implementation-<slug>.html` 에 반드시 들어가야 함):
 - **변경 대상 파일 목록** — 수정/신규 구분, 절대 경로
 - **기존 코드 영향 영역** — 1번 탐색 결과
+- **코드베이스 설계 리서치** — 로컬 구조 분석 + 외부 딥 리서치 수행 여부 + 참고 research 파일
+- **DDD 코드베이스 매핑** — bounded context, aggregate/invariant, application service, repository/adapter boundary, domain event, anti-corruption boundary 를 실제 모듈·파일·테스트로 어떻게 옮길지
+- **DDD 마이그레이션 계획** — 기존 구조와 DDD 목표 구조의 차이, 새 경계·계층·모듈 추가 순서, rollback 경로
 - **단계별 구현 순서** — 각 단계의 *입력 / 작업 / 검증 방법* 3축
 - **테스트 전략** — 어떤 레벨(unit/integration/e2e) 로 무엇을 검증
 - **위험·롤백 경로** — 실패 시 되돌리는 방법
 
-위 5개 섹션 중 하나라도 비어 있으면 step4 진입 금지. 누락된 섹션은 plan skill 재호출 또는 메인이 직접 채운다.
+위 8개 섹션 중 하나라도 비어 있으면 step4 진입 금지. 누락된 섹션은 plan skill 재호출 또는 메인이 직접 채운다.
 
 **제약**:
 - plan 본문에 *"적절히"*, *"필요시"*, *"어떻게든"* 같은 모호어 등장 시 step4 가 추측 코딩으로 빠진다. 발견되면 구체화 후 진행.
 - domain 설계에 없는 기능을 plan 에 임의로 추가 금지. 추가가 필요하면 step2 로 되돌린다.
+- DDD 목표 구조와 기존 코드베이스가 맞지 않으면 DDD 목표 구조를 우선한다. 변경 폭이 커지면 Chunks 모드로 나누고, migration/rollback 을 명시한 뒤 진행한다.
 
 ---
 
@@ -147,14 +173,16 @@ mode: single | chunks (chunks=N, 분해 사유: <어떤 신호 어떤 값>)
 | title | 1줄 제목 (사용자 시나리오 한 줄) |
 | 의존 chunks | 이 chunk 가 의존하는 chunk_id 목록 |
 | 변경 대상 파일 | 예상 파일 경로 목록 |
+| DDD 코드베이스 매핑 | bounded context / aggregate·invariant / application service / repository·adapter boundary / domain event / anti-corruption boundary 중 이 chunk 가 다루는 항목 |
+| DDD 마이그레이션 계획 | 기존 구조에서 DDD 목표 구조로 옮기는 순서와 rollback 기준 |
 | 성공 기준 | 이 chunk 완료 시 *관찰 가능한 결과* 1줄 |
 | 상태 | `pending` / `in-progress` / `done` / `paused` |
 
-분해 사유, 의존성 그래프 (가능하면 ASCII 박스 또는 inline SVG) 도 포함.
+분해 사유, DDD 적용 요약, 의존성 그래프 (가능하면 ASCII 박스 또는 inline SVG) 도 포함. `chunks-overview` 는 요약 산출물이므로 chunk 별 상세 구현 plan 을 대체하지 않는다.
 
 ### Step 4: 첫 chunk 의 implementation plan 작성
 
-`chunk-1` (의존성 없는 가장 첫 chunk) 의 `.harness/implementation-<slug>-chunk-1.html` 작성. 양식은 단일 모드의 *필수 산출 섹션* (변경 대상 파일 목록 / 기존 코드 영향 영역 / 단계별 구현 순서 / 테스트 전략 / 위험·롤백 경로) 그대로. 단 *해당 chunk 범위* 로만 한정.
+`chunk-1` (의존성 없는 가장 첫 chunk) 의 `.harness/implementation-<slug>-chunk-1.html` 작성. 양식은 단일 모드의 *필수 산출 섹션 8개 전체* 그대로. 즉 변경 대상 파일 목록 / 기존 코드 영향 영역 / 코드베이스 설계 리서치 / DDD 코드베이스 매핑 / DDD 마이그레이션 계획 / 단계별 구현 순서 / 테스트 전략 / 위험·롤백 경로를 모두 포함한다. 단 *해당 chunk 범위* 로만 한정한다.
 
 ### Chunk Loop 동작 (step4~6 의 사이클)
 

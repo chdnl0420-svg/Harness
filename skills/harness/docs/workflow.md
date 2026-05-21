@@ -10,8 +10,8 @@
 
 | step | 수행 주체 | 비고 |
 |------|----------|------|
-| step2 도메인 설계 | `harness-plan` skill (noask 동작) | 한 줄 목표 → 6 카테고리 합리적 가정 + Open Questions. `/harness-ask` 는 `harness-plan-ask` (인터랙티브) |
-| step3 구현 계획 | `plan` skill — Chunks 임계값 통과 시 vertical slice 분해 + chunk loop | step2 연속성. [steps/step3-impl-plan.md Chunks 분해](steps/step3-impl-plan.md) |
+| step2 도메인 설계 | `harness-plan` skill (noask 동작) | 한 줄 목표 → 입력 가정 + Open Questions → 딥 리서치 필요 여부 판정 → DDD 도메인 모델(공통 업무 언어, bounded context, aggregate/invariant, context map). 필요 시 `harness-deep-researcher` 호출 후 결과 반영. `/harness-ask` 는 `harness-plan-ask` (인터랙티브) |
+| step3 구현 계획 | `plan` skill — 코드베이스 설계 리서치 + DDD 코드 매핑 + DDD 마이그레이션 계획 후 Chunks 임계값 통과 시 vertical slice 분해 + chunk loop | step2 의 DDD 목표 모델을 실제 모듈·파일·테스트로 강제 적용한다. 기존 구조와 충돌하면 DDD 목표 구조 우선. 저장 직후 `core/validate-ddd-codebase.py` PASS 필요. [steps/step3-impl-plan.md Chunks 분해](steps/step3-impl-plan.md) |
 | step4 구현 | 메인 Claude 직접. 빌드 실패 시 `build-fix` skill 또는 언어별 `*-build-resolver` agent | TDD 모드면 `tdd` skill / `tdd-guide` agent |
 | step5 리뷰 | **Codex CLI** (`codex exec` 외부) + 보조: `code-review` / `code-reviewer` (fallback), `security-review` / `security-reviewer` (보안 민감 코드) | Codex 외부 CLI 그대로. self-review bias 차단 외부 verifier 유일 보존 |
 | step6 QA | `harness-qa-engineer` agent (Task 도구) | 페르소나 객관성 보존 위해 subagent 유지. MCP 브라우저 가용성이 객관 게이트 |
@@ -19,6 +19,7 @@
 | step8 commit | 메인 Claude 직접 + Chunks 모드면 chunk 별 incremental commit | — |
 
 **외부 의존성 (subagent 가치 유지 영역)**:
+- **`harness-deep-researcher`** — step2/step3 에서 DDD 적용, 코드베이스 설계, 라이브러리/API, 보안, migration 리서치가 필요할 때 호출. 절차와 저장 형식은 [docs/procedures/deep-research-procedure.md](docs/procedures/deep-research-procedure.md) 를 따른다.
 - **Codex CLI** (`codex exec`) — step5 외부 verifier. self-review bias 차단 유일 외부 단위.
 - **MCP 브라우저 도구** (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) — step6/step7 자동화 객관 게이트.
 

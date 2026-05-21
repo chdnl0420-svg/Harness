@@ -84,6 +84,8 @@ caller: harness-deep-researcher (slash | skill | agent | workflow)
 ## 필요 판정 기준 (호출자 공통)
 
 다음 중 하나라도 해당하면 deep research 호출:
+- DDD 적용 방식, bounded context, aggregate, domain event, anti-corruption boundary 판단이 구현 구조에 직접 영향
+- 코드베이스 설계 방식(Clean Architecture, Ports and Adapters, dependency inversion, module boundary, migration path)을 현재 코드에 맞춰 판단해야 함
 - 라이브러리·프레임워크 비교 또는 선택
 - 최신 모범 사례 · current trends (학습 데이터 cutoff 이후 변경 가능 영역)
 - 보안 권고 (OWASP / NIST / CVE)
@@ -97,4 +99,3 @@ caller: harness-deep-researcher (slash | skill | agent | workflow)
 ---
 
 > **2026-05-20 폐기 안내**: 본 문서가 언급하는 `--noagent` 플래그 / `.harness/.noagent` 마커 / Task subagent 분기는 모두 폐기됨. 모든 harness-* 단위는 `Skill` 도구로 호출하는 *skill* 으로 통합. 자세히: [harness/SKILL.md 실행 옵션](~/.claude/skills/harness/SKILL.md#실행-옵션-2026-05-20-단순화--agent--skill-전환-후).
-

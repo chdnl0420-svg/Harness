@@ -5,12 +5,17 @@
 - `.harness/progress-<slug>.md` 진행 기록
 
 **입력 게이트 (skip 금지)**:
-- `.harness/implementation-<slug>.md` 전문을 **반드시 다시 읽어** 메인 컨텍스트에 올린다.
-- step3 의 5개 필수 섹션 (변경 파일 / 영향 영역 / 단계별 순서 / 테스트 전략 / 위험·롤백) 이 채워져 있는지 확인. 누락 시 step3 로 되돌린다.
+- 단일 모드면 `.harness/implementation-<slug>.html` 전문을 **반드시 다시 읽어** 메인 컨텍스트에 올린다.
+- Chunks 모드면 현재 chunk 의 `.harness/implementation-<slug>-chunk-<i>.html` 전문을 **반드시 다시 읽어** 메인 컨텍스트에 올린다. `implementation-<slug>-chunks-overview.html` 은 현재 chunk 번호, 의존성, DDD migration 흐름 확인용으로만 함께 읽는다.
+- step3 의 8개 필수 섹션 (변경 파일 / 영향 영역 / 코드베이스 설계 리서치 / DDD 코드베이스 매핑 / DDD 마이그레이션 계획 / 단계별 순서 / 테스트 전략 / 위험·롤백) 이 채워져 있는지 확인. 누락 시 step3 로 되돌린다.
+- DDD 코드베이스 검증기를 실행한다. 실패하면 구현 금지, step3 로 되돌린다.
+  ```bash
+  python ~/.codex/skills/harness/core/validate-ddd-codebase.py --skill-root ~/.codex/skills/harness --project <PROJECT_ROOT> --slug <slug> --require-artifacts
+  ```
 
 **흐름** (메인 Claude 가 직접 구현):
 
-1. **단계별 진행** — `implementation-<slug>.md` 의 *"단계별 구현 순서"* 를 한 단계씩 처리. 한 번에 전체 구현 금지.
+1. **단계별 진행** — `implementation-<slug>.html` 의 *"단계별 구현 순서"* 를 한 단계씩 처리. 한 번에 전체 구현 금지.
 2. 각 단계에서:
    - **읽기 먼저** — 변경 대상 파일을 Read 로 먼저 본다. 추측 편집 금지.
    - **TDD 권장** — 동작이 측정 가능한 경우 테스트를 먼저 작성(RED) → 구현(GREEN) → 정리(REFACTOR). 사용자가 명시적으로 TDD 면제를 요청한 경우만 생략.
@@ -19,7 +24,7 @@
 3. **변경 기록** — 각 단계 완료 시 `.harness/progress-<slug>.md` 에 다음 형식으로 누적:
    ```markdown
    ## Step N (<날짜·시간>)
-   - 단계명: <implementation-<slug>.md 의 단계명>
+   - 단계명: <implementation-<slug>.html 의 단계명>
    - 변경 파일: <경로 목록>
    - 검증: <테스트·빌드·타입체크 결과>
    - 비고: <발견된 문제·skip 한 항목>
@@ -28,7 +33,7 @@
 
 **제약 (`donot.md` 참조)**:
 - *"동작할 것 같다"* 로 다음 단계 진행 금지. 검증 통과 후에만 진행.
-- `implementation-<slug>.md` 에 없는 기능을 임의로 추가 금지. 추가 필요 시 step3 로 되돌린다.
+- `implementation-<slug>.html` 에 없는 기능을 임의로 추가 금지. 추가 필요 시 step3 로 되돌린다.
 - 빌드 실패를 *"나중에 한꺼번에 고치자"* 로 미루지 않는다. 즉시 해결 또는 step3 로 회송.
 - 동작하지 않는 기존 코드 (버튼·필터 등) 를 임의로 제거하지 않는다 — 버그일 수 있다.
 

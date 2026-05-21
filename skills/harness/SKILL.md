@@ -83,12 +83,12 @@ description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. `/harness <자연어>` �
 
 | 결정 지점 | 위치 | 기본 동작 | 비고 |
 |----------|------|----------|------|
-| 도메인 설계 skill 선택 | step2 1번 | `harness-plan` skill (noask — 6 카테고리 합리적 가정 + Open Questions 누적) | `/harness-ask` 모드는 `harness-plan-ask`. Phase 3·4·5 공유. [step2-domain.md](docs/steps/step2-domain.md) |
+| 도메인 설계 skill 선택 | step2 1번 | `harness-plan` skill (noask — 입력 가정 + Open Questions + 딥 리서치 게이트 + DDD 도메인 모델 누적) | `/harness-ask` 모드는 `harness-plan-ask`. DDD 모델은 공통 업무 언어 / bounded context / aggregate·invariant / context map 을 포함. [step2-domain.md](docs/steps/step2-domain.md) |
 | Chunks 모드 판정 | step3 첫 진입 | **자동** — 도메인 plan 4 신호(시나리오 수·변경 파일·의존성 레이어·UX) 중 2+ 임계값 통과 시 Chunks | vertical slice 분해 → step4~6 사이클. [Chunks 분해](docs/steps/step3-impl-plan.md#chunks-분해-절차-critical--2026-05-20-신규) |
 | Chunks 사이 전환 | chunk_i step6 PASS 직후 | **자동** (다음 chunk_i+1) | commit 자동 (push 는 `.harness/.auto-push` 시) → chunks-overview 갱신 → 다음 chunk plan → step4. last chunk PASS 시 step7 |
 | Chunks 회송 카운터 | step5 LGTM:NO / step6 FAIL | **chunk 별 독립 — *동일* 문제·결함 5회 시에만 중단** (서로 다른 문제 5회는 중단 아님) | 동일성 판정 = `(유형 enum, 파일경로 normalized)` 튜플 일치 |
 | Chunks 별 commit | chunk_i step6 PASS 직후 | 자동 incremental commit (local only) | 메시지: `feat(<slug>): chunk <i>/<N> — <title>`. push 는 `.harness/.auto-push` 시. 실패 시 재시도 1회 → 로컬 only |
-| 도메인 설계 승인 | step2 4번 | **자동 승인** | Codex 리뷰 1회 반영 후 `domain-<slug>.html` 작성 → step3 |
+| 도메인 설계 승인 | step2 6번 | **자동 승인** | 딥 리서치와 DDD 게이트, Codex 리뷰 1회 반영 후 `domain-<slug>.html` 작성 → step3 |
 | step5 *동일 문제* LGTM:NO 5회 | step5→step3 루프 | **자동 중단** (서로 다른 문제 5회 누적은 중단 아님) | report 사유 기록. [동일성 판정](docs/workflow.md#5-결함-유형-enum--라벨-회피-차단-critical) |
 | step6 *동일 결함* FAIL 5회 | step6→step3 루프 | **자동 중단** (서로 다른 결함 5회 누적은 중단 아님) | 동일 |
 | step6 BLOCKED (단발) | 도구 부재 / 환경 / 게이트 NO 등 | **자동 분기 — 묻지 않음** | 재시도 1회 → fail + 다중 슬러그 → (D) `paused-by-blocked` + 다음 슬러그. 단일 슬러그 → (C) 중단. BLOCKED 사유 enum: `DEPENDENCY_MISSING / EVIDENCE_GATE_FAIL / PERMISSION_DENIED / GUIDE_MISSING / ENV_UNREACHABLE / OTHER` |

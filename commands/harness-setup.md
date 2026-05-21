@@ -13,9 +13,11 @@ argument-hint: '[--update] [--no-version-check]'
 
 | 호출 | 동작 |
 |------|------|
-| `/harness-setup` | 검진 + Codex CLI 자동 설치 + outdated 면 자동 업데이트 |
-| `/harness-setup --update` | 즉시 GitHub 최신본 재설치 (force) |
-| `/harness-setup --no-version-check` | GitHub 호출 skip (오프라인용) |
+| `/harness-setup` | 검진 + Codex CLI 자동 설치 + **outdated 감지 시 자동 재설치** (= `--update` 동작 자동 트리거) |
+| `/harness-setup --update` | outdated 여부 무관 즉시 GitHub 최신본 강제 재설치 |
+| `/harness-setup --no-version-check` | GitHub 호출 skip (오프라인용 — 자동 재설치도 안 함) |
+
+> **2026-05-21 변경**: 기본 호출 (`/harness-setup`) 도 outdated 면 *자동 재설치* 까지 수행. 이전엔 "outdated 감지만 하고 사용자가 직접 `--update` 호출" 이었으나 이제 한 번에 끝남. force 재설치가 필요하면 `--update` 그대로 사용. 검진만 원하면 `--no-version-check`.
 
 ## 검사 항목
 
@@ -62,12 +64,19 @@ for c in harness.md harness-ask.md; do
   test -f "$HOME/.claude/commands/$c" || echo "missing: commands/$c — run /harness-setup --update"
 done
 
-# 8. Version check (skip if --no-version-check)
+# 8. Version check + outdated 자동 재설치 (skip if --no-version-check)
 LOCAL_SHA=$(awk -F': ' '/^commit:/{print $2}' "$HOME/.claude/skills/harness/.version" 2>/dev/null)
 REMOTE_SHA=$(curl -s https://api.github.com/repos/chdnl0420-svg/Harness/commits/main \
   | grep -m1 '"sha":' | cut -d'"' -f4)
-[ "$LOCAL_SHA" = "$REMOTE_SHA" ] && echo "✅ 최신" || echo "⬆ outdated: $LOCAL_SHA → $REMOTE_SHA"
+if [ "$LOCAL_SHA" = "$REMOTE_SHA" ]; then
+  echo "✅ 최신"
+else
+  echo "⬆ outdated: $LOCAL_SHA → $REMOTE_SHA — 자동 재설치 시작"
+  # 아래 "--update 동작" 절차를 그대로 실행 (백업 → tarball → 덮어쓰기 → .version 갱신)
+fi
 ```
+
+> **8번에서 outdated 감지 시 메인 Claude 는 곧바로 아래 `--update` 동작 절차를 수행한다** — 사용자에게 묻지 않음 (검진 호출 자체가 "최신 상태 보장" 의미). force 가 필요 없는데도 `--update` 호출과 동일 결과. 사용자가 명시적으로 차단하려면 `--no-version-check` 사용.
 
 > Windows PowerShell 환경에서는 동일 검사를 PowerShell 로 수행해도 됨 (Node/curl 모두 Windows native 지원).
 
@@ -80,7 +89,8 @@ REMOTE_SHA=$(curl -s https://api.github.com/repos/chdnl0420-svg/Harness/commits/
 | Codex 로그인 누락 | 사용자 입력 필요 | 터미널에서 `codex login` 실행 후 메인 채팅에 "완료" |
 | Node < 20 | 시스템 도구 | https://nodejs.org 또는 `winget install OpenJS.NodeJS.LTS` |
 | 페르소나 agent 누락 | 첫 `/harness` 호출 시 자동 등록 | `/harness <task>` 호출하면 step1 에서 `bootstrap-runtime.sh` 가 자동 처리 |
-| GitHub outdated | 마스터 갱신 필요 | `/harness-setup --update` |
+| GitHub outdated → **자동 재설치 완료** | 마스터 갱신됨 (백업은 `*.bak-<ts>` 로 보존) | 그대로 `/harness <task>` 호출 가능. 문제 시 백업 폴더 mv 로 rollback |
+| GitHub outdated + `--no-version-check` | 의도적 오프라인 모드 | 필요 시 온라인 환경에서 `/harness-setup` 재호출 |
 
 ## `--update` 동작
 

@@ -12,9 +12,10 @@ description: 'DO NOT AUTO-TRIGGER. SLASH-COMMAND-ONLY. `/harness <자연어>` �
 1. **호출 컨텍스트 확인** — 직전 사용자 메시지가 다음 중 하나인지 확인:
    - `/harness <자연어>` 슬래시 커맨드
    - `/harness-ask <자연어>` 슬래시 커맨드 (interactive 모드)
-   - *"/harness 워크플로우 시작해줘"* 처럼 슬래시 커맨드를 단어로 가리킴
-2. **셋 다 아니면 = 자동 트리거 시도 = 즉시 거부**:
-   - 채팅 한 줄: `[harness] 본 skill 은 /harness 또는 /harness-ask 슬래시 커맨드 명시 호출 전용입니다. 작업 시작은 /harness <자연어> 형태로 호출하세요.`
+   - `/harness-resume <slug>` 슬래시 커맨드 (재개 모드 — step1 부트스트랩 skip, 마지막 step 이후 재진입)
+   - *"/harness 워크플로우 시작해줘"* 처럼 위 3개 슬래시 커맨드 중 하나를 단어로 가리킴
+2. **모두 아니면 = 자동 트리거 시도 = 즉시 거부**:
+   - 채팅 한 줄: `[harness] 본 skill 은 /harness, /harness-ask, /harness-resume 슬래시 커맨드 명시 호출 전용입니다. 새 작업은 /harness <자연어>, 진행중 작업 재개는 /harness-resume <slug> 형태로 호출하세요.`
    - step1~complete 절차 진행 금지 / `.harness/` 폴더 생성 금지 / `bootstrap-runtime.sh` 호출 금지
 3. **거부 사유 enum** (자체 분류, 채팅에만 보고, progress 파일 작성 안 함):
    - `KEYWORD_MATCH_ONLY` — 일반 대화 키워드만 보고 자동 로드 시도

@@ -1,5 +1,7 @@
 # step1. harness 초기화
 
+> **`/harness-resume <slug>` 경로 진입 시 본 step 의 1·3·7·8번은 skip** — slug 생성·산출물 폴더 mkdir·legacy cleanup·progress 부트스트랩 모두 *건너뜀* (기존 progress 와 산출물 보존이 재개의 본질). 2·4·5·6번 (메인 repo 경로 식별, harness-* skill/agent 가용성 검증, 일반 skill 가용성 확인) 은 동일하게 수행 — 세션 변경으로 도구 등록 상태가 바뀔 수 있음. 모드 마커 (`.harness/.noask`·`.harness/.ask`) 는 `/harness-resume` 본문 5단계에서 progress 의 `모드:` 필드 기준으로 이미 복원됨.
+
 1. **REQUEST_ID 생성** — slug 형식 (예: `jwt-middleware`). 중복 시 숫자 추가.
 2. **메인 repo 경로 식별 (worktree 안에서 실행된 경우)**
    - `git rev-parse --show-toplevel` 로 현재 작업 트리 경로 획득

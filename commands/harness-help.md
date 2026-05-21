@@ -43,6 +43,7 @@ Claude 는 이 명령을 받으면 **순서대로**:
 |------|------|------|
 | **슬래시 명령** | `/harness` | 본 워크플로우 시작 (noask 기본) |
 | | `/harness-ask` | 본 워크플로우 (인터랙티브 — 결정 지점에서 질의) |
+| | `/harness-resume <slug>` | 진행 중 워크플로우 재개 — progress-<slug>.md 의 마지막 step 식별 후 그 다음부터 자동 진입 |
 | | `/harness-setup` | 의존성 검진 + Codex CLI 자동 설치 + GitHub 버전 확인 |
 | | `/harness-spec` | 프로젝트 사양 (PRD/ARCH/ADR/UI) + 헌법 작성 |
 | | `/harness-review` | 즉석 코드/문서 리뷰 (Codex 직접 호출) |
@@ -147,6 +148,22 @@ complete                   — report-<slug>.html (종합 보고서) + ADR appen
 
 #### `/harness-ask <요청>`
 `/harness` 의 인터랙티브 변형. `AskUserQuestion` 도구 호출이 허용됨.
+
+#### `/harness-resume <slug>`
+중단·일시정지된 워크플로우 재개. 새 progress 를 만들지 않고 기존 `progress-<slug>.md` 의 마지막 도달 step 을 식별해 *그 다음 단계부터* SKILL.md 절차 재진입.
+
+- **인자**: slug 1개 (자연어 아님)
+- **모드 보존**: progress 의 `모드:` 필드 (`noask` / `ask`) 기준 마커 복원
+- **Loop Counter 보존**: step5 LGTM:NO / step6 FAIL / step6 BLOCKED 누적 그대로 이어짐
+- **chunks 무결성**: 마지막 PASS chunk 까지 commit 검증 (미commit 시 재시도)
+- **차단 조건**: report 이미 존재 / progress 없음 / resume 5회 누적 → 안내 후 종료
+
+예시: 어제 step6 BLOCKED 로 멈춘 `jwt-middleware` 재개:
+```
+/harness-resume jwt-middleware
+```
+
+**관련 파일**: `~/.claude/commands/harness-resume.md`, `~/.claude/skills/harness/SKILL.md` (입력 게이트가 본 명령도 진입 경로로 인정)
 
 #### `/harness-setup [--update | --no-version-check]`
 **언제**: 처음 설치 후 / 의존성 누락 메시지 본 후 / GitHub 업데이트 반영하려고.
